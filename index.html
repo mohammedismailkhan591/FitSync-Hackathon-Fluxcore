@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>FitSync — Your AI Fitness Companion</title>
+  <meta name="description" content="FitSync is a habit-first fitness planning prototype with personalized workouts, recipes, nutrition targets and progress tracking.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <!-- AUTH -->
+  <section id="authScreen" class="auth-screen">
+    <div class="auth-visual">
+      <div class="brand"><span class="brand-mark">F</span><span>FITSYNC</span></div>
+      <div class="auth-copy">
+        <span class="eyebrow">TRACK • PLAN • EAT • TRAIN • IMPROVE</span>
+        <h1>Your fitness plan,<br><span>built around you.</span></h1>
+        <p>FitSync learns your goals, schedule, food preferences, experience and recovery habits to create a practical fitness journey you can actually follow.</p>
+        <div class="mini-stats"><div><b>01</b><small>Personal profile</small></div><div><b>02</b><small>Adaptive plan</small></div><div><b>03</b><small>Real progress</small></div></div>
+      </div>
+    </div>
+    <div class="auth-panel">
+      <div class="auth-box">
+        <div class="mobile-brand brand"><span class="brand-mark">F</span><span>FITSYNC</span></div>
+        <div class="auth-tabs"><button class="auth-tab active" data-auth="login">Login</button><button class="auth-tab" data-auth="signup">Create account</button></div>
+        <form id="loginForm" class="auth-form">
+          <h2>Welcome back.</h2><p class="muted">Continue your journey.</p>
+          <label>Email<input id="loginEmail" type="email" required placeholder="you@example.com"></label>
+          <label>Password<input id="loginPassword" type="password" required placeholder="••••••••"></label>
+          <button class="primary-btn wide" type="submit">Enter FitSync <span>→</span></button>
+          <p id="loginMessage" class="form-message"></p>
+          <p class="demo-note">Prototype note: account data is stored locally in this browser.</p>
+        </form>
+        <form id="signupForm" class="auth-form hidden">
+          <h2>Start with your profile.</h2><p class="muted">A few questions help FitSync personalize your plan.</p>
+          <label>Full name<input id="signupName" type="text" required placeholder="Your name"></label>
+          <label>Email<input id="signupEmail" type="email" required placeholder="you@example.com"></label>
+          <label>Password<input id="signupPassword" type="password" minlength="4" required placeholder="At least 4 characters"></label>
+          <button class="primary-btn wide" type="submit">Build my FitSync profile <span>→</span></button>
+          <p id="signupMessage" class="form-message"></p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- APP -->
+  <div id="app" class="app hidden">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand"><span class="brand-mark">F</span><span>FITSYNC</span></div>
+      <p class="side-label">YOUR COMMAND CENTER</p>
+      <nav>
+        <button class="nav-item active" data-page="home"><span>⌂</span> Overview</button>
+        <button class="nav-item" data-page="workouts"><span>◒</span> Workouts</button>
+        <button class="nav-item" data-page="diet"><span>◉</span> Diet & Recipes</button>
+        <button class="nav-item" data-page="routine"><span>◷</span> Daily Routine</button>
+        <button class="nav-item" data-page="recovery"><span>☾</span> Recovery</button>
+        <button class="nav-item" data-page="progress"><span>▥</span> Progress</button>
+        <button class="nav-item" data-page="coach"><span>✦</span> AI Coach</button>
+        <button class="nav-item" data-page="profile"><span>◎</span> My Profile</button>
+        <button class="nav-item" data-page="sources"><span>⌘</span> Sources</button>
+      </nav>
+      <div class="side-bottom">
+        <div class="streak-card"><span>🔥</span><div><b id="sideStreak">0 day streak</b><small>Consistency beats perfection.</small></div></div>
+        <button id="resetProgressBtn" class="logout-btn">↺ Reset progress</button>
+        <button id="logoutBtn" class="logout-btn">↪ Log out</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button id="menuBtn" class="menu-btn" aria-label="Open menu">☰</button>
+        <div><p class="top-kicker">FITSYNC / <span id="pageLabel">OVERVIEW</span></p><h2 id="greeting">Good morning.</h2></div>
+        <div class="top-actions"><div class="xp-pill">⚡ <b id="xpValue">0</b> XP</div><button class="avatar" id="avatar" aria-label="Profile">U</button></div>
+      </header>
+
+      <!-- OVERVIEW -->
+      <section class="page active" id="page-home">
+        <div class="hero-card">
+          <div><span class="eyebrow">TODAY'S MISSION</span><h1 id="heroTitle">Make today count.</h1><p id="heroText">Your plan is built from your real profile and real actions.</p><div class="hero-actions"><button class="primary-btn" data-page-jump="workouts">Start today's workout →</button><button class="ghost-btn" data-page-jump="diet">See today's meals</button></div></div>
+          <div class="hero-ring"><div><b id="completion">0%</b><small>daily score</small></div></div>
+        </div>
+
+        <div class="quote-strip"><span class="quote-mark">“</span><div><span class="eyebrow">DAILY MOTIVATION</span><p id="dailyQuote">Small progress is still progress.</p><small id="quoteAuthor">— FitSync</small></div><button class="icon-btn" id="newQuoteBtn" title="New quote">↻</button></div>
+
+        <div class="section-heading"><div><span class="eyebrow">YOUR NUTRITION TARGETS</span><h3>Know what your body needs.</h3></div><button class="text-btn" data-page-jump="profile">Edit profile →</button></div>
+        <div class="nutrition-grid">
+          <div class="nutrition-card"><div class="ring calories"><span>🔥</span></div><div><small>CALORIES</small><strong id="calorieTarget">—</strong><span id="calorieProgress">0 logged</span></div></div>
+          <div class="nutrition-card"><div class="ring protein"><span>💪</span></div><div><small>PROTEIN</small><strong id="proteinTarget">—</strong><span id="proteinProgress">0g logged</span></div></div>
+          <div class="nutrition-card"><div class="ring fats"><span>🥑</span></div><div><small>HEALTHY FATS</small><strong id="fatTarget">—</strong><span>daily planning target</span></div></div>
+          <div class="nutrition-card"><div class="ring fiber"><span>🌾</span></div><div><small>FIBER</small><strong id="fiberTarget">—</strong><span>daily planning target</span></div></div>
+        </div>
+
+        <div class="metric-grid">
+          <div class="metric-card"><span>💧</span><small>Water</small><strong id="waterMetric">0 / 8</strong><button data-action="water">+ 1 glass</button></div>
+          <div class="metric-card"><span>🚶</span><small>Steps logged</small><strong id="stepsMetric">0</strong><button data-action="steps">+ 500 steps</button></div>
+          <div class="metric-card"><span>🥗</span><small>Meals logged</small><strong id="mealMetric">0 / 3</strong><button data-action="meal">Log meal</button></div>
+          <div class="metric-card"><span>😴</span><small>Sleep</small><strong id="sleepMetric">Not logged</strong><button data-page-jump="recovery">Check in</button></div>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="panel"><div class="panel-head"><div><span class="eyebrow">ADAPTIVE ENGINE</span><h3>How are you feeling today?</h3></div></div><p class="muted">Your energy changes the suggested session.</p><div class="energy-options"><button data-energy="low">😴<span>Low</span></button><button data-energy="medium" class="selected">🙂<span>Good</span></button><button data-energy="high">🔥<span>High</span></button></div><div id="adaptiveResult" class="adaptive-result">Recommended: 25-minute full-body session.</div></div>
+          <div class="panel"><div class="panel-head"><div><span class="eyebrow">TODAY'S PLAN</span><h3 id="planHeadline">Your plan is ready.</h3></div></div><div class="plan-list" id="todayPlan"></div></div>
+        </div>
+      </section>
+
+      <!-- WORKOUTS -->
+      <section class="page" id="page-workouts">
+        <div class="page-title"><span class="eyebrow">MOVE LAB</span><h1>Practical workouts you can actually do.</h1><p>Follow each exercise, start the timer when useful, and manually mark every completed set. Nothing is auto-checked.</p></div>
+        <div class="filter-row"><button class="filter active" data-filter="all">All</button><button class="filter" data-filter="strength">Strength</button><button class="filter" data-filter="cardio">Cardio</button><button class="filter" data-filter="mobility">Mobility</button><button class="filter" data-filter="quick">5–10 min</button></div>
+        <div class="workout-grid" id="workoutGrid"></div>
+        <div class="panel safety-panel"><span class="eyebrow">TRAIN SMART</span><h3>Technique first.</h3><p>Stop if you feel sharp pain, dizziness or unusual symptoms. Choose an easier variation when needed. FitSync is an educational prototype, not a medical service.</p></div>
+      </section>
+
+      <!-- DIET -->
+      <section class="page" id="page-diet">
+        <div class="page-title"><span class="eyebrow">FUEL INTELLIGENCE</span><h1>Diet plans, recipes & food knowledge.</h1><p>Your meals are suggestions matched to your goal and preferences — not a rigid prescription.</p></div>
+        <div class="diet-top"><div class="diet-score"><span class="eyebrow">MEAL PROGRESS</span><strong id="mealScore">0 / 3</strong><div class="score-bar"><i id="mealScoreBar"></i></div><p id="dietTip">Log a meal after you actually eat it.</p></div><div class="macro-note"><b>Why macros matter</b><span>Calories = energy • Protein = repair • Fats = essential functions • Fiber = digestion • Water = hydration</span></div></div>
+        <div class="budget-diet panel"><div class="budget-copy"><span class="eyebrow">BUDGET-FRIENDLY FUEL</span><h3>Healthy food should not have to be expensive.</h3><p>FitSync highlights practical Indian staples such as dal, rice, chana, soya, eggs, peanuts and sattu, with recipe substitutions so users can choose options that fit their budget.</p><div class="budget-pills"><span>₹ Budget aware</span><span>🥗 Everyday foods</span><span>🍳 Protein options</span><span>♻️ Flexible swaps</span></div></div><img src="diet-guide.jpg" alt="Indian food nutrition guide with protein, carbs, calories and approximate prices"></div>
+        <div class="meal-grid" id="mealGrid"></div>
+        <div class="panel"><div class="panel-head"><div><span class="eyebrow">DIET ENCYCLOPEDIA</span><h3>Search foods & understand the basics.</h3></div><input id="foodSearch" class="search-input" placeholder="Search paneer, oats, rice…"></div><div class="food-grid" id="foodGrid"></div></div>
+        <div class="panel nutrition-learn"><span class="eyebrow">NUTRITION 101</span><h3>How FitSync estimates your targets</h3><div class="learn-grid"><div><b>Calories</b><p>Estimated from your profile, activity and goal. A target is a planning estimate, not a diagnosis.</p></div><div><b>Protein</b><p>Higher-protein goals support muscle repair; FitSync uses a simple weight-based planning range.</p></div><div><b>Healthy fats</b><p>Fats are energy-dense and important for normal body functions, so the plan keeps them in balance.</p></div><div><b>Fiber & water</b><p>Fiber supports digestion; hydration needs vary with body size, climate and activity.</p></div></div></div>
+      </section>
+
+      <!-- ROUTINE -->
+      <section class="page" id="page-routine">
+        <div class="page-title"><span class="eyebrow">DAILY FLOW</span><h1>Your routine, broken into real wins.</h1><p>Check a task only after you actually do it.</p></div>
+        <div class="routine-layout"><div class="timeline" id="routineList"></div><div class="panel routine-side"><span class="eyebrow">FOCUS MODE</span><h3>Need a little momentum?</h3><div class="focus-timer"><b id="timer">05:00</b><small>FOCUS MINUTES</small></div><button id="timerBtn" class="primary-btn wide">Start timer</button><p class="muted">Use it for a walk, mobility, meal prep, breathing or your next set.</p></div></div>
+      </section>
+
+      <!-- RECOVERY -->
+      <section class="page" id="page-recovery">
+        <div class="page-title"><span class="eyebrow">RECOVERY LAB</span><h1>Recovery is part of training.</h1><p>Track sleep, stress and mobility so the plan can adapt.</p></div>
+        <div class="recovery-grid"><div class="panel check-card"><span>😴</span><h3>Sleep</h3><p>How many hours did you sleep?</p><div class="number-control"><button data-sleep="-1">−</button><b id="sleepHours">0</b><span>hours</span><button data-sleep="1">+</button></div></div><div class="panel check-card"><span>🧠</span><h3>Stress</h3><p>Quick self-check.</p><div class="stress-options"><button data-stress="1">Low</button><button data-stress="2">Okay</button><button data-stress="3">High</button></div></div><div class="panel check-card"><span>🧘</span><h3>Mobility</h3><p>Did you stretch today?</p><button class="primary-btn" id="stretchBtn">Mark 8-min reset</button></div></div>
+        <div class="panel recovery-score-panel"><span class="eyebrow">RECOVERY SCORE</span><strong id="recoveryScore">—</strong><p id="recoveryMessage">Log sleep and stress to calculate your personal check-in.</p></div>
+      </section>
+
+      <!-- PROGRESS -->
+      <section class="page" id="page-progress">
+        <div class="page-title"><span class="eyebrow">PROGRESS WITHOUT OBSESSION</span><h1>Measure consistency, not perfection.</h1><p>Every number below comes from an action you logged.</p></div>
+        <div class="progress-grid"><div class="progress-card"><span>🔥</span><small>Current streak</small><strong id="progressStreak">0 days</strong><div class="progress-track"><i id="streakBar"></i></div></div><div class="progress-card"><span>⚡</span><small>Total XP</small><strong id="progressXP">0</strong><div class="progress-track"><i id="xpBar"></i></div></div><div class="progress-card"><span>🎯</span><small>Consistency</small><strong id="consistency">0%</strong><div class="progress-track"><i id="consistencyBar"></i></div></div><div class="progress-card"><span>🏋️</span><small>Workouts completed</small><strong id="workoutsCount">0</strong><div class="progress-track"><i id="workoutBar"></i></div></div></div>
+        <div class="panel chart-panel"><div class="panel-head"><div><span class="eyebrow">RECENT ACTIVITY</span><h3>Activity pulse</h3></div><span class="legend">Actual logged actions</span></div><div class="bars" id="activityBars"></div></div>
+        <div class="panel journey-panel"><div class="panel-head"><div><span class="eyebrow">YOUR JOURNEY</span><h3>Week 1 → Week 4 → Week 8 → Week 12</h3></div><span class="legend">Trend view • real logged data</span></div><div class="journey-tabs"><button class="journey-tab active" data-journey="weight">Weight</button><button class="journey-tab" data-journey="consistency">Consistency</button><button class="journey-tab" data-journey="protein">Protein avg.</button><button class="journey-tab" data-journey="sleep">Sleep</button><button class="journey-tab" data-journey="strength">Strength</button><button class="journey-tab" data-journey="calories">Calories</button></div><div class="journey-chart" id="journeyChart"></div><div class="journey-insight" id="journeyInsight">Start logging today to unlock your first journey insight.</div></div>
+        <div class="milestone-section"><div class="section-heading"><div><span class="eyebrow">MILESTONES</span><h3>Progress worth celebrating.</h3></div><span class="legend">Earned through real actions</span></div><div class="milestone-grid" id="milestoneGrid"></div></div>
+        
+      </section>
+
+      <!-- COACH -->
+      <section class="page" id="page-coach">
+        <div class="page-title"><span class="eyebrow">FITSYNC INTELLIGENCE</span><h1>Your next best move.</h1><p>A rule-based coaching layer that turns your profile and real check-ins into practical suggestions.</p></div>
+        <div class="coach-layout"><div class="coach-card"><div class="coach-avatar">✦</div><span class="eyebrow">LIVE RECOMMENDATION</span><h2 id="coachHeadline">Start with your smallest useful action.</h2><p id="coachText">Complete a real action and FitSync will update the recommendation.</p><div class="coach-actions"><button class="primary-btn" id="coachActionBtn">Do it now →</button><button class="outline-btn" id="refreshCoach">Refresh advice</button></div></div><div class="panel"><span class="eyebrow">YOUR INPUTS</span><div class="input-row"><span>Energy</span><b id="coachEnergy">Good</b></div><div class="input-row"><span>Water</span><b id="coachWater">0 / 8</b></div><div class="input-row"><span>Meals</span><b id="coachMeals">0 / 3</b></div><div class="input-row"><span>Sleep</span><b id="coachSleep">Not logged</b></div><div class="input-row"><span>Goal</span><b id="coachGoal">Not set</b></div></div></div>
+        <div class="coach-principles"><div><b>01</b><span>Listen to the user</span></div><div><b>02</b><span>Reduce friction</span></div><div><b>03</b><span>Reward consistency</span></div><div><b>04</b><span>Never fake progress</span></div></div>
+      </section>
+
+      <!-- PROFILE -->
+      <section class="page" id="page-profile">
+        <div class="page-title"><span class="eyebrow">MY PROFILE</span><h1 id="profileTitle">Your FitSync blueprint.</h1><p>These answers drive your workout, food and target recommendations. You can edit them any time.</p></div>
+        <div class="profile-summary" id="profileSummary"></div>
+        <div class="profile-actions"><button class="primary-btn" id="editProfileBtn">Edit onboarding answers</button><button class="outline-btn" id="profileResetBtn">Reset progress only</button></div>
+      </section>
+
+      <!-- SOURCES -->
+      <section class="page" id="page-sources">
+        <div class="page-title"><span class="eyebrow">TRANSPARENCY</span><h1>Sources & methodology.</h1><p>FitSync is a hackathon prototype. Its recommendations are simplified, evidence-informed planning logic and are not medical advice.</p></div>
+        <div class="source-grid"><div class="source-card"><b>WHO</b><h3>Physical activity</h3><p>Used for general activity guidance and the idea of combining aerobic movement with muscle-strengthening work.</p><a href="https://www.who.int/news-room/fact-sheets/detail/physical-activity" target="_blank" rel="noreferrer">Open source →</a></div><div class="source-card"><b>CDC</b><h3>Sleep</h3><p>Used for general sleep education and recovery messaging.</p><a href="https://www.cdc.gov/sleep/about/index.html" target="_blank" rel="noreferrer">Open source →</a></div><div class="source-card"><b>ACSM</b><h3>Exercise guidance</h3><p>Used as a professional reference for exercise and training principles.</p><a href="https://www.acsm.org/education-resources/trending-topics-resources/physical-activity-guidelines" target="_blank" rel="noreferrer">Open source →</a></div><div class="source-card"><b>FitSync</b><h3>Personalization logic</h3><p>Profile → goal → schedule → preferences → logged behavior → next recommendation. This layer is our hackathon product logic.</p><span class="source-tag">Original prototype logic</span></div></div>
+      </section>
+
+      <footer><div class="team-credit"><span class="eyebrow">TEAM FLUXCORE</span><strong>FitSync</strong><p><b>Developed by Mohammed Ismail Khan</b> • Coordinated with Rehan Khan • Team members: Maqdoom, Zaid, Haniya & Khatija</p><small>Hackathon prototype • Personalization, not perfection • Built for accessible, sustainable fitness.</small></div></footer>
+    </main>
+  </div>
+
+  <!-- AMI FITNESS CHAT -->
+  <button id="amiLauncher" class="ami-launcher" aria-label="Open Ami fitness assistant"><span class="ami-spark">✦</span><span><b>Ami</b><small>Fitness assistant</small></span><i>●</i></button>
+  <div id="amiPanel" class="ami-panel hidden" role="dialog" aria-label="Ami fitness assistant">
+    <div class="ami-head"><div class="ami-avatar">A</div><div><b>Ami</b><small>Your fitness-only smart companion</small></div><button id="amiClose" class="modal-close">×</button></div>
+    <div class="ami-safety">Ami answers fitness, workout, nutrition, recovery and habit questions. It does not diagnose medical conditions.</div>
+    <div id="amiMessages" class="ami-messages"></div>
+    <div class="ami-quick"><button data-ami="What workout should I do today?">Today's workout</button><button data-ami="What should I eat on a budget?">Budget meals</button><button data-ami="How can I improve my sleep?">Sleep tips</button></div>
+    <form id="amiForm" class="ami-form"><input id="amiInput" placeholder="Ask Ami a fitness question…" autocomplete="off"><button type="submit">↑</button></form>
+  </div>
+
+  <!-- ONBOARDING -->
+  <div id="onboardingModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle">
+    <div class="onboarding-box">
+      <div class="modal-top"><div><span class="eyebrow">BUILD YOUR PLAN</span><h2 id="onboardingTitle">Tell FitSync about you.</h2><p class="muted">We ask these questions so your plan can be more useful and realistic.</p></div><button id="closeOnboarding" class="modal-close" title="Close">×</button></div>
+      <div class="stepper" id="stepper"></div>
+      <form id="onboardingForm">
+        <div id="onboardingContent"></div>
+        <div class="modal-actions"><button type="button" id="onboardingBack" class="outline-btn">← Back</button><span id="onboardingStepLabel">Step 1 of 5</span><button type="button" id="onboardingNext" class="primary-btn">Next →</button></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- WORKOUT MODAL -->
+  <div id="workoutModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="workout-modal-box">
+      <div class="modal-top"><div><span class="eyebrow">PRACTICAL SESSION</span><h2 id="workoutModalTitle">Workout</h2></div><button id="closeWorkoutBtn" class="modal-close">×</button></div>
+      <p class="muted">Read the cue, do the exercise yourself, then press <b>MARK DONE</b>. FitSync will not mark anything automatically.</p>
+      <div id="workoutModalList" class="workout-step-list"></div>
+      <div class="modal-actions"><button id="cancelWorkoutBtn" class="outline-btn">Cancel</button><button id="finishWorkoutBtn" class="primary-btn" disabled>Complete workout ✓</button></div>
+    </div>
+  </div>
+
+  <!-- RECIPE MODAL -->
+  <div id="recipeModal" class="modal hidden" role="dialog" aria-modal="true"><div class="recipe-modal-box"><button id="closeRecipeBtn" class="modal-close">×</button><div id="recipeContent"></div></div></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
