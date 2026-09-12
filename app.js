@@ -1,35 +1,52 @@
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 
-const VERSION = 5;
+const VERSION = 7;
 const defaultState = {
   version: VERSION, user: null, profile: {},
   water: 0, meals: 0, steps: 0, sleep: 0, stress: 0,
   stretched: false, energy: 'medium', xp: 0, streak: 0,
   challenge: 0, workouts: 0, consistency: 0, activeDays: [],
-  mealCalories: 0, mealProtein: 0, routine: [false,false,false,false,false], journey: []
+  mealCalories: 0, mealProtein: 0, routine: [false,false,false,false,false], journey: [], recipeFavorites: [], completedExercises: 0
 };
 let state = clone(defaultState);
 let onboardingStep = 0;
 let editingProfile = false;
 let activeWorkout = null;
 let workoutDone = [];
+let workoutVerified = [];
 let workoutTimers = {};
+let workoutTimerLeft = {};
+let workoutRpe = 5;
 let timerSeconds = 300;
 let timerInterval = null;
 
 function clone(x){ return JSON.parse(JSON.stringify(x)); }
 function userKey(email){ return `fitsync:v${VERSION}:${String(email).trim().toLowerCase()}`; }
-function getUsers(){ try{return JSON.parse(localStorage.getItem('fitsync:users')||'{}')}catch{return{}} }
-function saveUsers(x){localStorage.setItem('fitsync:users',JSON.stringify(x));}
+const CLOUD_ENABLED = !!window.FitSyncCloud?.enabled;
+let recoveryMode = false;
+let cloudUserId = null;
+let cloudSaveTimer = null;
 function save(){
   if(state.user?.email){
     recordJourneySnapshot();
     localStorage.setItem(userKey(state.user.email),JSON.stringify(state));
+    if(CLOUD_ENABLED && cloudUserId){
+      clearTimeout(cloudSaveTimer);
+      cloudSaveTimer=setTimeout(()=>window.FitSyncCloud.saveState(cloudUserId,state),350);
+    }
   }
   updateUI();
 }
-function load(email){ try{const x=JSON.parse(localStorage.getItem(userKey(email))||'null'); if(x?.version===VERSION){x.journey=x.journey||[];return x;}}catch{} return clone(defaultState); }
+function loadCached(email){ try{const x=JSON.parse(localStorage.getItem(userKey(email))||'null'); if(x?.version===VERSION){x.journey=x.journey||[];return x;}}catch{} return null; }
+async function loadCloudState(userId,email){
+  if(!CLOUD_ENABLED) return null;
+  try{
+    const x=await window.FitSyncCloud.loadState(userId);
+    if(x?.state?.version===VERSION){ x.state.journey=x.state.journey||[]; localStorage.setItem(userKey(email),JSON.stringify(x.state)); return x.state; }
+  }catch(err){ console.warn('FitSync cloud load failed',err); }
+  return null;
+}
 function recordJourneySnapshot(){
   if(!state.user?.email)return;
   if(!Array.isArray(state.journey))state.journey=[];
@@ -54,37 +71,52 @@ $('#signupForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const name=$('#signupName').value.trim(),email=$('#signupEmail').value.trim().toLowerCase(),password=$('#signupPassword').value;
   $('#signupMessage').textContent='';
-
-  // Sign-up is intentionally local only. No backend/Supabase account is created here.
-  const users=getUsers();
-  if(users[email]){ $('#signupMessage').textContent='Account already exists. Please login.'; return; }
-  users[email]={name,password};
-  saveUsers(users);
-  state=clone(defaultState);
-  state.user={name,email};
-  save();
-  editingProfile=false;
-  openApp();
-  openOnboarding();
+  if(!CLOUD_ENABLED){$('#signupMessage').textContent='Production setup is incomplete. Connect Supabase first.';return;}
+  $('#signupMessage').textContent='Creating your secure account…';
+  const {data,error}=await window.FitSyncCloud.signUp(email,password,name);
+  if(error){$('#signupMessage').textContent=error.message||'Could not create account.';return;}
+  if(!data.session){$('#signupMessage').textContent='Account created. Check your email to confirm, then log in.';return;}
+  cloudUserId=data.user?.id||data.session?.user?.id||null;
+  state=clone(defaultState); state.user={name,email}; save();
+  editingProfile=false; openApp(); openOnboarding();
 });
-$('#loginForm').addEventListener('submit',e=>{
+$('#forgotPasswordBtn').addEventListener('click',async()=>{
+  const email=$('#loginEmail').value.trim().toLowerCase();
+  if(!email){$('#loginMessage').textContent='Enter your email first.';return;}
+  if(!CLOUD_ENABLED){$('#loginMessage').textContent='Production setup is incomplete. Connect Supabase first.';return;}
+  $('#loginMessage').textContent='Sending password reset email…';
+  const {error}=await window.FitSyncCloud.resetPassword(email);
+  $('#loginMessage').textContent=error?(error.message||'Could not send reset email.'):'If an account exists for that email, a reset link has been sent.';
+});
+$('#resetPasswordForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const p=$('#newPassword').value;
+  const c=$('#confirmPassword').value;
+  if(p.length<8){$('#resetMessage').textContent='Use at least 8 characters.';return;}
+  if(p!==c){$('#resetMessage').textContent='Passwords do not match.';return;}
+  const {error}=await window.FitSyncCloud.updatePassword(p);
+  if(error){$('#resetMessage').textContent=error.message||'Could not update password.';return;}
+  $('#resetMessage').textContent='Password updated. You can now continue using FitSync.';
+  setTimeout(()=>{recoveryMode=false;$('#resetModal').classList.add('hidden');},900);
+});
+
+$('#loginForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const email=$('#loginEmail').value.trim().toLowerCase(),password=$('#loginPassword').value;
   $('#loginMessage').textContent='';
-  const users=getUsers();
-  if(!users[email]||users[email].password!==password){
-    $('#loginMessage').textContent='Email or password is incorrect.';
-    return;
-  }
-  state=load(email);
-  state.user={name:users[email].name,email};
-  save();
-  openApp();
-  toast('Welcome back — your saved plan is loaded.');
+  if(!CLOUD_ENABLED){$('#loginMessage').textContent='Production setup is incomplete. Connect Supabase first.';return;}
+  $('#loginMessage').textContent='Signing you in securely…';
+  const {data,error}=await window.FitSyncCloud.signIn(email,password);
+  if(error){$('#loginMessage').textContent=error.message||'Email or password is incorrect.';return;}
+  cloudUserId=data.user?.id||data.session?.user?.id||null;
+  const cloud=await loadCloudState(cloudUserId,email);
+  state=cloud||loadCached(email)||clone(defaultState);
+  state.user={name:state.user?.name||data.user?.user_metadata?.name||email.split('@')[0],email};
+  save(); openApp(); toast('Welcome back — your cloud profile is synced.');
   if(!state.profile.goal)openOnboarding();
 });
 function openApp(){$('#authScreen').classList.add('hidden');$('#app').classList.remove('hidden');$('#avatar').textContent=firstName().charAt(0).toUpperCase();navigate('home');} 
-$('#logoutBtn').addEventListener('click',()=>{state=clone(defaultState);$('#app').classList.add('hidden');$('#authScreen').classList.remove('hidden');$('#loginMessage').textContent='';$('#loginForm').reset();toast('Logged out.');});
+$('#logoutBtn').addEventListener('click',async()=>{if(CLOUD_ENABLED)await window.FitSyncCloud.signOut();cloudUserId=null;state=clone(defaultState);$('#app').classList.add('hidden');$('#authScreen').classList.remove('hidden');$('#loginMessage').textContent='';$('#loginForm').reset();toast('Logged out.');});
 $('#resetProgressBtn').addEventListener('click',resetProgress);
 $('#profileResetBtn').addEventListener('click',resetProgress);
 function resetProgress(){if(!state.user)return;if(!confirm('Reset only your fitness progress? Your profile will stay saved.'))return;const profile=clone(state.profile),user=clone(state.user);state=clone(defaultState);state.user=user;state.profile=profile;save();renderRoutine();renderMeals();renderBars();toast('Progress reset to zero.');}
@@ -144,6 +176,11 @@ function updateUI(){
   $('#waterBadge')?.classList.toggle('unlocked',state.water>=targets().water);$('#workoutBadge')?.classList.toggle('unlocked',state.workouts>0);$('#streakBadge')?.classList.toggle('unlocked',state.streak>=3);
   $('#mealScore').textContent=`${state.meals} / 3`;$('#mealScoreBar').style.width=(state.meals/3*100)+'%';const rs=recoveryScore();$('#recoveryScore').textContent=rs===null?'—':rs;$('#recoveryMessage').textContent=rs===null?'Log sleep and stress to calculate your personal check-in.':rs>=80?'Good recovery zone. Keep your routine steady.':rs>=60?'Recovery is okay. Consider a lighter session if you feel tired.':'Recovery looks limited today. Prioritize rest and gentle movement.';$('#coachWater').textContent=`${state.water} / ${targets().water}`;$('#coachMeals').textContent=`${state.meals} / 3`;$('#coachSleep').textContent=state.sleep?`${state.sleep}h`:'Not logged';$('#coachGoal').textContent=state.profile.goal||'Not set';$('#coachEnergy').textContent=state.energy==='low'?'Low':state.energy==='high'?'High':'Good';
   updateAdaptive();renderProfile();renderBars();
+  const mw=$('#momentumWorkout'),mr=$('#momentumRecovery'),mn=$('#momentumNutrition'),mt=$('#momentumText');
+  if(mw)mw.textContent=state.workouts?'Session completed':'Ready to train';
+  if(mr)mr.textContent=recoveryScore()===null?'Check-in needed':`${recoveryScore()}/100`;
+  if(mn)mn.textContent=state.mealProtein>=targets().protein?'Protein target hit':`${Math.max(0,targets().protein-state.mealProtein)}g protein left`;
+  if(mt)mt.textContent=state.workouts===0?'Start one verified exercise session today.':state.sleep&&state.sleep<6?'Recovery is your next best move.':'Keep your next small action visible and easy.';
 }
 function updateAdaptive(){const msg={low:'Low energy: choose 8–10 minutes of mobility or an easy walk.',medium:'Good energy: your balanced session is ready.',high:'High energy: choose the strength plan plus a short cardio finisher.'}[state.energy];$('#adaptiveResult').textContent=msg;const action=state.meals<2?'Log your next meal.':state.water<targets().water?'Drink some water.':state.workouts===0?'Start your first workout.':'Keep your streak alive with one small action.';$('#heroText').textContent=action;$('#todayPlan').innerHTML=`<div class="plan-item"><b>🏋️ Workout</b><span>${workoutRecommendation()}</span></div><div class="plan-item"><b>🥗 Nutrition</b><span>${state.meals}/3 meals logged</span></div><div class="plan-item"><b>💧 Hydration</b><span>${state.water}/${targets().water} glasses</span></div><div class="plan-item"><b>😴 Recovery</b><span>${state.sleep?state.sleep+'h logged':'Check in today'}</span></div>`;}
 function workoutRecommendation(){if(state.energy==='low')return 'Mobility • 10 min';if(state.energy==='high')return 'Strength + finisher • 35 min';return state.profile.goal==='Improve endurance'?'Cardio intervals • 18 min':'Full Body Builder • 25 min';}
@@ -158,11 +195,12 @@ const workoutData=[
 ];
 function renderWorkoutCards(filter='all'){$('#workoutGrid').innerHTML=workoutData.filter(w=>filter==='all'||w.type===filter).map(w=>`<article class="workout-card"><div class="workout-visual">${w.type==='strength'?'🏋️':w.type==='cardio'?'🏃':w.type==='mobility'?'🧘':'⚡'}</div><span>${w.type.toUpperCase()} • ${w.time} MIN</span><h3>${w.name}</h3><p>${w.items.map(x=>x[0]).join(' · ')}</p><small class="muted">${w.level} • Goal: ${w.goal}</small><button class="outline-btn start-workout" data-workout="${w.name}">Start practical session →</button></article>`).join('');$$('.start-workout').forEach(b=>b.addEventListener('click',()=>startWorkout(b.dataset.workout)));}
 $$('.filter').forEach(b=>b.addEventListener('click',()=>{$$('.filter').forEach(x=>x.classList.remove('active'));b.classList.add('active');renderWorkoutCards(b.dataset.filter)}));
-function startWorkout(name){activeWorkout=workoutData.find(w=>w.name===name);workoutDone=activeWorkout.items.map(()=>false);$('#workoutModalTitle').textContent=activeWorkout.name;renderWorkoutModal();$('#workoutModal').classList.remove('hidden');}
-function renderWorkoutModal(){$('#workoutModalList').innerHTML=activeWorkout.items.map((x,i)=>`<div class="workout-step ${workoutDone[i]?'completed':''}"><div class="step-number">${i+1}</div><div><h4>${x[0]}</h4><p>${x[1]} • ${x[3]}</p></div><div class="step-tools"><span class="timer-pill" id="timer-${i}"></span><button class="set-timer" data-i="${i}">${workoutTimers[i]?'Stop timer':'⏱ Timer'}</button><button class="mark-exercise" data-i="${i}">${workoutDone[i]?'DONE ✓':'MARK DONE'}</button></div></div>`).join('');$$('.mark-exercise').forEach(b=>b.addEventListener('click',()=>{const i=Number(b.dataset.i);workoutDone[i]=!workoutDone[i];renderWorkoutModal();}));$$('.set-timer').forEach(b=>b.addEventListener('click',()=>startExerciseTimer(Number(b.dataset.i))));$('#finishWorkoutBtn').disabled=!workoutDone.every(Boolean);}
-function startExerciseTimer(i){if(workoutTimers[i]){clearInterval(workoutTimers[i]);delete workoutTimers[i];renderWorkoutModal();return}let left=activeWorkout.items[i][2];const el=()=>document.querySelector(`#timer-${i}`);workoutTimers[i]=setInterval(()=>{left--;const e=el();if(e)e.textContent=`${Math.floor(left/60)}:${String(left%60).padStart(2,'0')}`;if(left<=0){clearInterval(workoutTimers[i]);delete workoutTimers[i];toast('Timer finished — now perform the exercise and mark it done.');renderWorkoutModal();}},1000);renderWorkoutModal();}
-function closeWorkout(){Object.values(workoutTimers).forEach(clearInterval);workoutTimers={};$('#workoutModal').classList.add('hidden');activeWorkout=null;workoutDone=[];}
-$('#closeWorkoutBtn').addEventListener('click',closeWorkout);$('#cancelWorkoutBtn').addEventListener('click',closeWorkout);$('#workoutModal').addEventListener('click',e=>{if(e.target.id==='workoutModal')closeWorkout()});$('#finishWorkoutBtn').addEventListener('click',()=>{if(!activeWorkout||!workoutDone.every(Boolean))return;state.workouts++;state.xp+=40;state.streak=Math.max(1,state.streak+1);logActivity();save();const n=activeWorkout.name;closeWorkout();toast(`${n} completed. +40 XP`);navigate('progress');});
+function startWorkout(name){activeWorkout=workoutData.find(w=>w.name===name);workoutDone=activeWorkout.items.map(()=>false);workoutVerified=activeWorkout.items.map(()=>false);workoutTimerLeft={};workoutRpe=5;$('#workoutModalTitle').textContent=activeWorkout.name;renderWorkoutModal();$('#workoutModal').classList.remove('hidden');}
+function renderWorkoutModal(){if(!activeWorkout)return;const completed=workoutDone.filter(Boolean).length;$('#workoutModalList').innerHTML=activeWorkout.items.map((x,i)=>{const left=workoutTimerLeft[i]||0;const canMark=workoutVerified[i]&&!workoutDone[i];const video=`https://www.youtube.com/results?search_query=${encodeURIComponent('proper form '+x[0]+' exercise')}`;return `<div class="workout-step ${workoutDone[i]?'completed':''}"><div class="step-number">${i+1}</div><div><h4>${x[0]}</h4><p>${x[1]} • ${x[3]}</p><a class="video-link" href="${video}" target="_blank" rel="noreferrer">▶ Watch form guide</a></div><div class="step-tools"><span class="timer-pill" id="timer-${i}">${left?formatSeconds(left):workoutVerified[i]?'✓ Ready':''}</span><button class="set-timer" data-i="${i}" ${workoutDone[i]?'disabled':''}>${workoutTimers[i]?'Stop timer':workoutVerified[i]?'✓ Work timer done':'⏱ Start work timer'}</button><button class="mark-exercise" data-i="${i}" ${(!canMark||workoutDone[i])?'disabled':''}>${workoutDone[i]?'DONE ✓':canMark?'I DID IT ✓':'Complete timer first'}</button></div></div>`}).join('');$$('.mark-exercise').forEach(b=>b.addEventListener('click',()=>{const i=Number(b.dataset.i);if(!workoutVerified[i])return;workoutDone[i]=true;state.completedExercises=(state.completedExercises||0)+1;renderWorkoutModal();}));$$('.set-timer').forEach(b=>b.addEventListener('click',()=>startExerciseTimer(Number(b.dataset.i))));$('#workoutProgress').textContent=`${completed}/${activeWorkout.items.length} exercises verified`;$('#finishWorkoutBtn').disabled=!workoutDone.every(Boolean);}
+function formatSeconds(sec){return `${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}`}
+function startExerciseTimer(i){if(workoutDone[i])return;if(workoutTimers[i]){clearInterval(workoutTimers[i]);delete workoutTimers[i];renderWorkoutModal();return}let left=activeWorkout.items[i][2];workoutTimerLeft[i]=left;renderWorkoutModal();const el=()=>document.querySelector(`#timer-${i}`);workoutTimers[i]=setInterval(()=>{left--;workoutTimerLeft[i]=left;const e=el();if(e)e.textContent=formatSeconds(Math.max(0,left));if(left<=0){clearInterval(workoutTimers[i]);delete workoutTimers[i];delete workoutTimerLeft[i];workoutVerified[i]=true;toast('Work timer complete. Now perform the movement and confirm it.');renderWorkoutModal();}},1000);}
+function closeWorkout(){Object.values(workoutTimers).forEach(clearInterval);workoutTimers={};workoutTimerLeft={};$('#workoutModal').classList.add('hidden');activeWorkout=null;workoutDone=[];workoutVerified=[];}
+$('#closeWorkoutBtn').addEventListener('click',closeWorkout);$('#cancelWorkoutBtn').addEventListener('click',closeWorkout);$('#workoutModal').addEventListener('click',e=>{if(e.target.id==='workoutModal')closeWorkout()});$('#workoutRpe')?.addEventListener('change',e=>workoutRpe=Number(e.target.value));$('#finishWorkoutBtn').addEventListener('click',()=>{if(!activeWorkout||!workoutDone.every(Boolean))return;state.workouts++;state.xp+=40+Math.min(10,Math.max(0,10-workoutRpe));state.lastWorkout={name:activeWorkout.name,date:today(),rpe:workoutRpe,exercises:activeWorkout.items.length};logActivity();save();const n=activeWorkout.name;closeWorkout();toast(`${n} verified. +${40+Math.min(10,Math.max(0,10-workoutRpe))} XP`);navigate('progress');});
 
 /* DIET + RECIPES */
 const meals=[
@@ -171,11 +209,56 @@ const meals=[
  {id:'snack',time:'SNACK',name:'Yogurt Fruit Crunch',desc:'Yogurt + fruit + seeds',cal:240,protein:12,tags:'Quick • High protein',ingredients:['150 g yogurt','1 fruit','1 tsp seeds'],steps:['Add yogurt to a bowl.','Top with fruit and seeds.']},
  {id:'dinner',time:'DINNER',name:'Light Recovery Plate',desc:'Roti + paneer/egg + salad',cal:480,protein:25,tags:'Recovery • Flexible',ingredients:['2 roti','100 g paneer OR 2 eggs','1–2 cups salad','Curd or raita'],steps:['Prepare roti and protein.','Add a large salad.','Serve with curd/raita.']}
 ];
-const foods=[['Paneer','265 kcal / 100g','Protein • Calcium'],['Chicken breast','165 kcal / 100g','High protein'],['Oats','150 kcal / 40g','Fiber'],['Peanut butter','190 kcal / 32g','Healthy fats'],['Rice','205 kcal / cooked cup','Carbohydrate'],['Banana','105 kcal / medium','Carbohydrate • Potassium'],['Eggs','72 kcal / egg','Protein'],['Lentils','230 kcal / cooked cup','Protein • Fiber']];
-function renderMeals(){const selected=state.profile.diet||'No preference';$('#mealGrid').innerHTML=meals.slice(0,3).map(m=>`<article class="meal-card"><span class="meal-icon">${m.id==='breakfast'?'🌅':m.id==='lunch'?'☀️':'🌙'}</span><div><small>${m.time}</small><h3>${m.name}</h3><p>${m.desc}</p><b>${m.cal} kcal • ${m.protein}g protein</b><div class="meal-actions"><button class="recipe-btn" data-recipe="${m.id}">Recipe</button><button data-eat="${m.id}">✓ Mark eaten</button></div></div></article>`).join('')+`<p class="muted diet-preference">Diet preference: <b>${selected}</b>. Recipes use flexible substitutions where possible.</p>`;$$('[data-eat]').forEach(b=>b.addEventListener('click',()=>{const m=meals.find(x=>x.id===b.dataset.eat);addMeal(m)}));$$('[data-recipe]').forEach(b=>b.addEventListener('click',()=>openRecipe(b.dataset.recipe)));}
-function openRecipe(id){const m=meals.find(x=>x.id===id);$('#recipeContent').innerHTML=`<div class="recipe-content"><span class="eyebrow">${m.time}</span><h2>${m.name}</h2><p class="recipe-meta">${m.cal} kcal • ${m.protein}g protein • ${m.tags}</p><h4>Ingredients</h4><ul>${m.ingredients.map(x=>`<li>${x}</li>`).join('')}</ul><h4>Preparation</h4><ol>${m.steps.map(x=>`<li>${x}</li>`).join('')}</ol><button class="primary-btn" id="recipeEatBtn">Mark this meal eaten ✓</button></div>`;$('#recipeModal').classList.remove('hidden');$('#recipeEatBtn').addEventListener('click',()=>{addMeal(m);closeRecipe()})}
-function closeRecipe(){$('#recipeModal').classList.add('hidden')}$('#closeRecipeBtn').addEventListener('click',closeRecipe);$('#recipeModal').addEventListener('click',e=>{if(e.target.id==='recipeModal')closeRecipe()});
-$('#foodSearch').addEventListener('input',e=>{const q=e.target.value.toLowerCase();renderFoods(q)});function renderFoods(q=''){$('#foodGrid').innerHTML=foods.filter(f=>f.join(' ').toLowerCase().includes(q)).map(f=>`<div class="food-item"><div><b>${f[0]}</b><small>${f[1]} • ${f[2]}</small></div><button type="button" title="Food info">i</button></div>`).join('')||'<p class="muted">No food found. Try another search.</p>'}
+const recipes=[
+['Paneer Power Bowl','Lunch','Vegetarian','35 min',520,30,'paneer, rice, vegetables','Cook rice; sauté paneer and vegetables; combine with lemon and spices.'],
+['Soya Keema Roti','Dinner','Vegetarian','30 min',430,28,'soya, roti, onion, tomato','Soak and crumble soya; cook with onion, tomato and spices; serve with roti.'],
+['Moong Dal Chilla','Breakfast','Vegetarian','20 min',310,20,'moong dal, onion, coriander','Blend soaked dal; add vegetables; cook thin pancakes on a hot pan.'],
+['Besan Chilla','Breakfast','Vegetarian','15 min',290,16,'besan, onion, tomato, spices','Mix besan batter; add vegetables; cook both sides until firm.'],
+['Egg Bhurji Roti','Breakfast','Eggetarian','15 min',390,25,'eggs, onion, tomato, roti','Scramble eggs with vegetables and spices; serve with roti.'],
+['Chicken Rice Bowl','Lunch','Non-vegetarian','30 min',560,38,'chicken, rice, vegetables','Cook seasoned chicken; combine with cooked rice and vegetables.'],
+['Dal Tadka Rice','Lunch','Vegetarian','25 min',470,20,'toor dal, rice, tomato','Cook dal until soft; finish with a small tempering; serve with rice.'],
+['Rajma Rice Bowl','Lunch','Vegetarian','35 min',510,19,'rajma, rice, tomato','Cook soaked rajma until tender; simmer with tomato and spices; serve with rice.'],
+['Chana Masala Roti','Lunch','Vegan','30 min',450,18,'chana, tomato, roti','Simmer cooked chickpeas with tomato and spices; serve with roti.'],
+['Sattu Protein Drink','Snack','Vegan','5 min',260,14,'sattu, water, lemon','Whisk sattu with water; add lemon, cumin and a pinch of salt.'],
+['Peanut Sattu Toast','Snack','Vegetarian','10 min',330,13,'sattu, peanut butter, bread','Mix sattu with a little water; spread on toast with peanut butter.'],
+['Curd Oats Bowl','Breakfast','Vegetarian','5 min',300,15,'oats, curd, banana, seeds','Combine oats and curd; top with banana and seeds.'],
+['Overnight Oats','Breakfast','Vegetarian','5 min',360,18,'oats, milk, banana, seeds','Mix ingredients; refrigerate overnight; eat chilled.'],
+['Greek Yogurt Fruit Bowl','Snack','Vegetarian','5 min',230,18,'Greek yogurt, fruit, seeds','Add fruit and seeds to yogurt; mix and serve.'],
+['Paneer Tikka Wrap','Lunch','Vegetarian','25 min',480,28,'paneer, roti, capsicum','Season paneer and vegetables; pan-cook; wrap in roti with salad.'],
+['Tofu Stir Fry','Dinner','Vegan','20 min',360,24,'tofu, mixed vegetables, soy sauce','Pan-sear tofu; add vegetables and cook until crisp-tender.'],
+['Soya Pulao','Lunch','Vegan','30 min',490,27,'soya chunks, rice, vegetables','Cook soya; sauté vegetables and rice; combine and steam briefly.'],
+['Masoor Dal Soup','Dinner','Vegan','25 min',300,19,'masoor dal, tomato, carrot','Simmer lentils and vegetables until soft; season and serve warm.'],
+['Mixed Dal Khichdi','Dinner','Vegetarian','35 min',430,18,'mixed dal, rice, vegetables','Pressure-cook washed dal, rice and vegetables with mild spices.'],
+['Vegetable Poha + Peanuts','Breakfast','Vegan','15 min',330,10,'poha, peanuts, onion, vegetables','Rinse poha; sauté onion and vegetables; fold in poha and peanuts.'],
+['Upma + Curd','Breakfast','Vegetarian','20 min',340,11,'semolina, vegetables, curd','Toast semolina; cook with vegetables and water; serve with curd.'],
+['Peanut Banana Oats','Breakfast','Vegetarian','8 min',390,14,'oats, banana, peanut butter','Cook oats; top with banana and peanut butter.'],
+['Chana Salad','Snack','Vegan','10 min',280,14,'chana, cucumber, tomato, lemon','Combine cooked chana and chopped vegetables; add lemon and spices.'],
+['Sprouts Chaat','Snack','Vegan','10 min',220,13,'sprouts, tomato, onion, lemon','Mix steamed sprouts with vegetables, lemon and chaat spices.'],
+['Paneer Bhurji','Dinner','Vegetarian','20 min',410,27,'paneer, tomato, onion','Crumble paneer; sauté with onion, tomato and spices.'],
+['Egg & Veggie Sandwich','Breakfast','Eggetarian','15 min',350,21,'eggs, whole wheat bread, vegetables','Scramble eggs; fill bread with eggs and fresh vegetables.'],
+['Chicken Roti Roll','Lunch','Non-vegetarian','20 min',460,35,'chicken, roti, salad','Cook chicken with spices; roll with roti and crunchy salad.'],
+['Fish Rice Plate','Dinner','Non-vegetarian','25 min',520,38,'fish, rice, vegetables','Pan-cook fish; serve with rice and a large portion of vegetables.'],
+['Dal Palak','Dinner','Vegetarian','25 min',330,20,'dal, spinach, tomato','Cook dal; fold in spinach and tomato; simmer until tender.'],
+['Matar Paneer Light','Dinner','Vegetarian','30 min',440,25,'paneer, peas, tomato','Cook tomato base; add peas and paneer; simmer until tender.'],
+['Ragi Dosa + Sambar','Breakfast','Vegetarian','30 min',400,16,'ragi flour, rice batter, sambar','Prepare thin dosa; cook until crisp; serve with sambar.'],
+['High-Protein Lassi','Snack','Vegetarian','5 min',220,16,'curd, milk, fruit','Blend curd, milk and fruit; avoid added sugar when possible.'],
+['Fruit & Seed Chia Bowl','Snack','Vegan','10 min',250,8,'chia, fruit, plant milk','Soak chia in plant milk; chill and top with fruit and seeds.'],
+['Rajma Chaat','Snack','Vegan','10 min',300,15,'rajma, onion, tomato, lemon','Mix cooked rajma with chopped vegetables and lemon.'],
+['Lentil Pasta Bowl','Lunch','Vegetarian','25 min',480,23,'whole-wheat pasta, lentils, tomato','Cook pasta; simmer lentils in tomato sauce; combine.'],
+['Soya Stuffed Paratha','Breakfast','Vegetarian','30 min',460,25,'soya, whole-wheat dough, spices','Prepare soya filling; stuff dough; cook on a hot tawa with minimal oil.'],
+['Peanut Chutney Idli','Breakfast','Vegetarian','20 min',380,14,'idli, peanuts, chutney','Steam idli; serve with peanut chutney and sambar.'],
+['Tandoori Tofu Bowl','Lunch','Vegan','25 min',420,25,'tofu, yogurt alternative, spices, rice','Marinate tofu; pan-cook or bake; serve with rice and salad.'],
+['Vegetable Dal Soup','Dinner','Vegan','25 min',280,17,'moong dal, carrot, spinach','Simmer dal and vegetables until soft; season lightly and serve.'],
+['Oats Egg Pancake','Breakfast','Eggetarian','15 min',360,24,'oats, eggs, onion, tomato','Blend oats; mix with eggs and vegetables; cook like a savory pancake.']
+].map((r,i)=>({id:`recipe-${i+1}`,name:r[0],meal:r[1],diet:r[2],time:r[3],cal:r[4],protein:r[5],keywords:r[6],steps:r[7].split('; ').map(x=>x.replace(/\.$/,'')),ingredients:r[6].split(', ').map(x=>x.charAt(0).toUpperCase()+x.slice(1))}));
+const foods=[['Paneer','265 kcal / 100g','Protein • Calcium'],['Chicken breast','165 kcal / 100g','High protein'],['Oats','150 kcal / 40g','Fiber'],['Peanut butter','190 kcal / 32g','Healthy fats'],['Rice','205 kcal / cooked cup','Carbohydrate'],['Banana','105 kcal / medium','Carbohydrate • Potassium'],['Eggs','72 kcal / egg','Protein'],['Lentils','230 kcal / cooked cup','Protein • Fiber'],['Soya chunks','Approx. 345 kcal / 100g dry','High protein'],['Chana','Approx. 364 kcal / 100g dry','Protein • Fiber'],['Sattu','Approx. 360 kcal / 100g','Protein • Fiber'],['Tofu','Approx. 145 kcal / 100g','Plant protein']];
+function recipeMatchesDiet(r){const d=(state.profile.diet||'No preference').toLowerCase();if(d.includes('vegan'))return r.diet==='Vegan';if(d.includes('vegetarian')&&!d.includes('non'))return r.diet==='Vegetarian'||r.diet==='Vegan';if(d.includes('eggetarian'))return ['Vegetarian','Vegan','Eggetarian'].includes(r.diet);return true;}
+function renderMeals(){const selected=state.profile.diet||'No preference';$('#mealGrid').innerHTML=meals.slice(0,3).map(m=>`<article class="meal-card"><span class="meal-icon">${m.id==='breakfast'?'🌅':m.id==='lunch'?'☀️':'🌙'}</span><div><small>${m.time}</small><h3>${m.name}</h3><p>${m.desc}</p><b>${m.cal} kcal • ${m.protein}g protein</b><div class="meal-actions"><button class="recipe-btn" data-recipe="${m.id}">Recipe</button><button data-eat="${m.id}">✓ Mark eaten</button></div></div></article>`).join('')+`<p class="muted diet-preference">Diet preference: <b>${selected}</b>. Open Recipe Explorer below for 40+ ideas.</p>`;$$('[data-eat]').forEach(b=>b.addEventListener('click',()=>{const m=meals.find(x=>x.id===b.dataset.eat);addMeal(m)}));$$('[data-recipe]').forEach(b=>b.addEventListener('click',()=>openRecipe(b.dataset.recipe)));}
+function openRecipe(id){const m=meals.find(x=>x.id===id)||recipes.find(x=>x.id===id);if(!m)return;$('#recipeContent').innerHTML=`<div class="recipe-content"><span class="eyebrow">${m.time||m.meal}</span><h2>${m.name}</h2><p class="recipe-meta">${m.cal} kcal • ${m.protein}g protein • ${m.tags||m.diet||'Fitness-friendly'}</p><h4>Ingredients</h4><ul>${m.ingredients.map(x=>`<li>${x}</li>`).join('')}</ul><h4>Preparation</h4><ol>${m.steps.map(x=>`<li>${x}</li>`).join('')}</ol><button class="primary-btn" id="recipeEatBtn">Mark this meal eaten ✓</button></div>`;$('#recipeModal').classList.remove('hidden');$('#recipeEatBtn').addEventListener('click',()=>{addMeal(m);closeRecipe()})}
+function recipeRank(r){let score=0;const goal=(state.profile.goal||'').toLowerCase();if(goal.includes('muscle')&&r.protein>=20)score+=5;if(goal.includes('strength')&&r.protein>=20)score+=4;if((state.profile.foodLikes||'').toLowerCase().split(',').some(x=>x.trim()&&r.keywords.includes(x.trim())))score+=2;if(recipeMatchesDiet(r))score+=4;if((state.mealProtein||0)<targets().protein)score+=r.protein/10;return score;}
+function renderRecipes(q='',category='All'){const query=q.trim().toLowerCase();const list=recipes.filter(r=>(category==='All'||r.meal===category)&&recipeMatchesDiet(r)).filter(r=>!query||`${r.name} ${r.diet} ${r.meal} ${r.keywords}`.toLowerCase().includes(query)).sort((a,b)=>recipeRank(b)-recipeRank(a));const visible=list.slice(0,48);$('#recipeCount').textContent=`${list.length} recipes`;$('#recipeGrid').innerHTML=visible.map(r=>`<article class="recipe-card"><div class="recipe-card-top"><span>${r.meal}</span><button class="favorite-recipe ${state.recipeFavorites?.includes(r.id)?'active':''}" data-fav="${r.id}" title="Save recipe">${state.recipeFavorites?.includes(r.id)?'♥':'♡'}</button></div><h3>${r.name}</h3><p>${r.diet} • ${r.time} • ${r.protein}g protein</p><div class="recipe-tags"><span>🔥 ${r.cal} kcal</span><span>💪 ${r.protein}g P</span></div><button class="outline-btn recipe-open" data-open-recipe="${r.id}">View recipe →</button></article>`).join('')||'<div class="recipe-empty"><b>No recipe found.</b><span>Try “paneer”, “oats”, “high protein”, “breakfast” or clear the filters.</span></div>';$$('[data-open-recipe]').forEach(b=>b.addEventListener('click',()=>openRecipe(b.dataset.openRecipe)));$$('[data-fav]').forEach(b=>b.addEventListener('click',()=>{const id=b.dataset.fav;state.recipeFavorites=state.recipeFavorites||[];state.recipeFavorites=state.recipeFavorites.includes(id)?state.recipeFavorites.filter(x=>x!==id):[...state.recipeFavorites,id];save();renderRecipes($('#recipeSearch').value,$('#recipeCategory').value);}));}
+$('#foodSearch').addEventListener('input',e=>renderFoods(e.target.value.toLowerCase()));function renderFoods(q=''){const matches=foods.filter(f=>f.join(' ').toLowerCase().includes(q));$('#foodGrid').innerHTML=matches.map(f=>`<div class="food-item"><div><b>${f[0]}</b><small>${f[1]} • ${f[2]}</small></div><span class="food-dot">●</span></div>`).join('')||'<p class="muted">No food found. Try another search.</p>'}
+$('#recipeSearch').addEventListener('input',e=>renderRecipes(e.target.value,$('#recipeCategory').value));$('#recipeCategory').addEventListener('change',()=>renderRecipes($('#recipeSearch').value,$('#recipeCategory').value));$('#surpriseRecipeBtn').addEventListener('click',()=>{const list=recipes.filter(recipeMatchesDiet);const r=list[Math.floor(Math.random()*list.length)];openRecipe(r.id);toast(`Ami picked ${r.name}.`)});
 
 /* ROUTINE */
 const routine=[['07:00','Hydration reset','Drink a glass of water','💧'],['08:00','Fuel up','Eat your planned breakfast','🥗'],['13:30','Movement break','Take a 5-minute screen break','🚶'],['18:00','Training window','Complete the session you chose','💪'],['22:30','Recovery shutdown','Reduce screens and prepare for sleep','☾']];
@@ -263,7 +346,16 @@ function amiReply(q){
 }
 function amiAdd(text,who='bot'){const box=$('#amiMessages');if(!box)return;const d=document.createElement('div');d.className=`ami-msg ${who}`;d.textContent=text;box.appendChild(d);box.scrollTop=box.scrollHeight;}
 function openAmi(){const panel=$('#amiPanel');panel.classList.remove('hidden');if(!$('#amiMessages').children.length)amiAdd(`Hi ${firstName()}! I'm Ami ✦. I only answer fitness-related questions. Ask me about your workout, food, sleep, recovery or goals.`)}
-$('#amiLauncher').addEventListener('click',openAmi);$('#amiClose').addEventListener('click',()=>$('#amiPanel').classList.add('hidden'));$$('[data-ami]').forEach(b=>b.addEventListener('click',()=>{openAmi();const q=b.dataset.ami;amiAdd(q,'user');setTimeout(()=>amiAdd(amiReply(q)),250)}));$('#amiForm').addEventListener('submit',e=>{e.preventDefault();const input=$('#amiInput'),q=input.value.trim();if(!q)return;amiAdd(q,'user');input.value='';setTimeout(()=>amiAdd(amiReply(q)),250)});
+$('#amiLauncher').addEventListener('click',openAmi);$('#amiClose').addEventListener('click',()=>$('#amiPanel').classList.add('hidden'));$$('[data-ami]').forEach(b=>b.addEventListener('click',()=>{openAmi();const q=b.dataset.ami;amiAdd(q,'user');askAmi(q)}));
+async function askAmi(q){
+  if(!amiIsFitness(q)){amiAdd(amiReply(q));return;}
+  if(window.FitSyncAI?.enabled){
+    const typing=document.createElement('div');typing.className='ami-msg bot ami-typing';typing.textContent='Ami is thinking…';$('#amiMessages').appendChild(typing);
+    try{const r=await window.FitSyncAI.ask(q,{profile:{goal:state.profile.goal,experience:state.profile.experience,diet:state.profile.diet,activity:state.profile.activity,fitnessRating:state.profile.fitnessRating,workoutDays:state.profile.workoutDays,minutes:state.profile.minutes,equipment:state.profile.equipment,foodLikes:state.profile.foodLikes},targets:targets(),today:{water:state.water,meals:state.meals,steps:state.steps,sleep:state.sleep,stress:state.stress,energy:state.energy,workouts:state.workouts}});typing.remove();amiAdd(r);return;}catch(err){typing.remove();console.warn('AI coach unavailable',err);}
+  }
+  setTimeout(()=>amiAdd(amiReply(q)),180);
+}
+$('#amiForm').addEventListener('submit',e=>{e.preventDefault();const input=$('#amiInput'),q=input.value.trim();if(!q)return;amiAdd(q,'user');input.value='';askAmi(q)});
 
 /* Wrap the existing UI update so new modules stay in sync. */
 const fitsyncOriginalUpdateUI=updateUI;
@@ -271,4 +363,4 @@ updateUI=function(){fitsyncOriginalUpdateUI();renderJourney();renderMilestones()
 
 
 /* INIT */
-renderWorkoutCards();renderMeals();renderFoods();renderRoutine();updateQuote();coachAdvice();updateUI();
+renderWorkoutCards();renderMeals();renderFoods();renderRecipes();renderRoutine();updateQuote();coachAdvice();updateUI();

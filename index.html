@@ -3,12 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>FitSync — Your AI Fitness Companion</title>
-  <meta name="description" content="FitSync is a habit-first fitness planning prototype with personalized workouts, recipes, nutrition targets and progress tracking.">
+  <title>FitSync v7 — Your AI Fitness Companion</title>
+  <meta name="description" content="FitSync is a personalized fitness platform for adaptive workouts, nutrition, recovery and progress tracking.">
+  <meta name="theme-color" content="#07090b">
+  <meta name="robots" content="index,follow">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
 </head>
 <body>
   <div id="toast" class="toast" aria-live="polite"></div>
@@ -31,22 +35,39 @@
         <form id="loginForm" class="auth-form">
           <h2>Welcome back.</h2><p class="muted">Continue your journey.</p>
           <label>Email<input id="loginEmail" type="email" required placeholder="you@example.com"></label>
-          <label>Password<input id="loginPassword" type="password" required placeholder="••••••••"></label>
+          <label>Password<input id="loginPassword" type="password" required autocomplete="current-password" placeholder="••••••••"></label>
+          <div class="auth-row"><button id="forgotPasswordBtn" type="button" class="text-btn">Forgot password?</button><span class="auth-hint">Secure sign-in</span></div>
           <button class="primary-btn wide" type="submit">Enter FitSync <span>→</span></button>
           <p id="loginMessage" class="form-message"></p>
-          <p class="demo-note">Prototype note: account data is stored locally in this browser.</p>
+          <p class="demo-note">Local demo mode — add Supabase keys to enable cloud accounts and cross-device sync.</p>
         </form>
         <form id="signupForm" class="auth-form hidden">
           <h2>Start with your profile.</h2><p class="muted">A few questions help FitSync personalize your plan.</p>
           <label>Full name<input id="signupName" type="text" required placeholder="Your name"></label>
           <label>Email<input id="signupEmail" type="email" required placeholder="you@example.com"></label>
-          <label>Password<input id="signupPassword" type="password" minlength="4" required placeholder="At least 4 characters"></label>
+          <label>Password<input id="signupPassword" type="password" minlength="8" required autocomplete="new-password" placeholder="At least 8 characters"></label>
           <button class="primary-btn wide" type="submit">Build my FitSync profile <span>→</span></button>
           <p id="signupMessage" class="form-message"></p>
         </form>
+        <p class="legal-note">By continuing, you agree to our <a href="privacy.html">Privacy Policy</a> and <a href="terms.html">Terms</a>.</p>
       </div>
     </div>
   </section>
+
+
+  <div id="resetModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="resetTitle">
+    <div class="auth-box reset-box">
+      <span class="eyebrow">ACCOUNT SECURITY</span>
+      <h2 id="resetTitle">Create a new password.</h2>
+      <p class="muted">Choose a strong password with at least 8 characters.</p>
+      <form id="resetPasswordForm" class="auth-form">
+        <label>New password<input id="newPassword" type="password" minlength="8" autocomplete="new-password" required></label>
+        <label>Confirm password<input id="confirmPassword" type="password" minlength="8" autocomplete="new-password" required></label>
+        <button class="primary-btn wide" type="submit">Update password</button>
+        <p id="resetMessage" class="form-message"></p>
+      </form>
+    </div>
+  </div>
 
   <!-- APP -->
   <div id="app" class="app hidden">
@@ -75,7 +96,7 @@
       <header class="topbar">
         <button id="menuBtn" class="menu-btn" aria-label="Open menu">☰</button>
         <div><p class="top-kicker">FITSYNC / <span id="pageLabel">OVERVIEW</span></p><h2 id="greeting">Good morning.</h2></div>
-        <div class="top-actions"><div class="xp-pill">⚡ <b id="xpValue">0</b> XP</div><button class="avatar" id="avatar" aria-label="Profile">U</button></div>
+        <div class="top-actions"><span id="cloudStatus" class="cloud-status">LOCAL DEMO</span><div class="xp-pill">⚡ <b id="xpValue">0</b> XP</div><button class="avatar" id="avatar" aria-label="Profile">U</button></div>
       </header>
 
       <!-- OVERVIEW -->
@@ -122,7 +143,7 @@
         <div class="diet-top"><div class="diet-score"><span class="eyebrow">MEAL PROGRESS</span><strong id="mealScore">0 / 3</strong><div class="score-bar"><i id="mealScoreBar"></i></div><p id="dietTip">Log a meal after you actually eat it.</p></div><div class="macro-note"><b>Why macros matter</b><span>Calories = energy • Protein = repair • Fats = essential functions • Fiber = digestion • Water = hydration</span></div></div>
         <div class="budget-diet panel"><div class="budget-copy"><span class="eyebrow">BUDGET-FRIENDLY FUEL</span><h3>Healthy food should not have to be expensive.</h3><p>FitSync highlights practical Indian staples such as dal, rice, chana, soya, eggs, peanuts and sattu, with recipe substitutions so users can choose options that fit their budget.</p><div class="budget-pills"><span>₹ Budget aware</span><span>🥗 Everyday foods</span><span>🍳 Protein options</span><span>♻️ Flexible swaps</span></div></div><img src="diet-guide.jpg" alt="Indian food nutrition guide with protein, carbs, calories and approximate prices"></div>
         <div class="meal-grid" id="mealGrid"></div>
-        <div class="panel"><div class="panel-head"><div><span class="eyebrow">DIET ENCYCLOPEDIA</span><h3>Search foods & understand the basics.</h3></div><input id="foodSearch" class="search-input" placeholder="Search paneer, oats, rice…"></div><div class="food-grid" id="foodGrid"></div></div>
+        <div class="panel"><div class="panel-head"><div><span class="eyebrow">DIET ENCYCLOPEDIA</span><h3>Search foods & understand the basics.</h3></div><input id="foodSearch" class="search-input" placeholder="Search paneer, oats, rice…"></div><div class="food-grid" id="foodGrid"></div></div><div class="panel recipe-explorer"><div class="panel-head recipe-explorer-head"><div><span class="eyebrow">RECIPE EXPLORER</span><h3>Find a meal you actually want to eat.</h3><p class="muted">Search 40+ practical Indian recipes by ingredient, meal type or goal. FitSync ranks options using your profile.</p></div><button id="surpriseRecipeBtn" class="primary-btn">✨ Surprise me</button></div><div class="recipe-toolbar"><input id="recipeSearch" class="search-input recipe-search" placeholder="Search recipes: paneer, oats, high protein…"><select id="recipeCategory" class="search-input recipe-category"><option>All</option><option>Breakfast</option><option>Lunch</option><option>Snack</option><option>Dinner</option></select><span id="recipeCount" class="recipe-count">0 recipes</span></div><div class="recipe-grid" id="recipeGrid"></div></div>
         <div class="panel nutrition-learn"><span class="eyebrow">NUTRITION 101</span><h3>How FitSync estimates your targets</h3><div class="learn-grid"><div><b>Calories</b><p>Estimated from your profile, activity and goal. A target is a planning estimate, not a diagnosis.</p></div><div><b>Protein</b><p>Higher-protein goals support muscle repair; FitSync uses a simple weight-based planning range.</p></div><div><b>Healthy fats</b><p>Fats are energy-dense and important for normal body functions, so the plan keeps them in balance.</p></div><div><b>Fiber & water</b><p>Fiber supports digestion; hydration needs vary with body size, climate and activity.</p></div></div></div>
       </section>
 
@@ -208,6 +229,9 @@
   <!-- RECIPE MODAL -->
   <div id="recipeModal" class="modal hidden" role="dialog" aria-modal="true"><div class="recipe-modal-box"><button id="closeRecipeBtn" class="modal-close">×</button><div id="recipeContent"></div></div></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="v7-services.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
