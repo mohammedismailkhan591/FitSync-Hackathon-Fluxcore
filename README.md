@@ -1,47 +1,53 @@
-# FitSync 🏋️
+# FitSync v7 — Production-ready deployment package
 
-**Adaptive fitness planning for real people, real schedules and real budgets.**
+FitSync is a personalized fitness web app with adaptive workouts, nutrition/recipe discovery, recovery tracking, progress, and an authenticated AI coach named Ami.
 
-FitSync is a hackathon prototype that turns a user's goals, experience, lifestyle, available time, equipment and food preferences into practical workout, nutrition and recovery guidance.
+## What changed in the production build
+- Supabase email/password authentication is required; no plaintext local-password fallback.
+- Persistent user state is stored in Supabase Postgres with Row Level Security.
+- Supabase auth session restoration and password recovery are implemented.
+- Ami API requires a valid Supabase access token before it can use your OpenAI key.
+- Ami receives a reduced, non-sensitive fitness context; health, smoking and alcohol onboarding fields are excluded from the AI request.
+- Security headers and a Content Security Policy are configured in `vercel.json`.
+- Added privacy/terms starter pages, favicon, manifest and robots.txt.
+- Existing recipe explorer, workout integrity flow, progress journey and dashboard remain.
 
-## Highlights
-- Personalized onboarding and fitness targets
-- Adaptive workout recommendations and Rescue Workout
-- Diet Encyclopedia + recipe search
-- Budget-friendly Indian food guidance
-- Daily water, steps, meals and sleep tracking
-- Recovery score and habit tracking
-- 12-week **Your Journey** progress timeline
-- Polished **Milestones** instead of childish badges
-- **Ami**, a fitness-only interactive assistant
-- Responsive dark dashboard for desktop and mobile
+## 1. Supabase
+1. Create a Supabase project.
+2. Authentication → Providers → Email: keep email/password enabled. Hosted Supabase projects require email verification by default.
+3. Authentication → URL Configuration: set Site URL to your final Vercel URL and add the same URL as a Redirect URL.
+4. SQL Editor: run `schema.sql`.
+5. Copy the Project URL and browser-safe publishable key into `supabase-config.js`. Never put a secret/service-role key there.
+6. For production email delivery, configure custom SMTP instead of relying on the limited default mail service.
 
-## Tech Stack
-- HTML5
-- CSS3
-- JavaScript
-- LocalStorage fallback
-- GitHub
-- Vercel
+## 2. Vercel environment variables
+Add these to Project Settings → Environment Variables for Production (and Preview if desired):
+- `OPENAI_API_KEY` — your server-side OpenAI API key (sensitive).
+- `OPENAI_MODEL` — optional, default `gpt-5-mini`.
+- `SUPABASE_URL` — your Supabase project URL.
+- `SUPABASE_PUBLISHABLE_KEY` — your Supabase publishable/anon key.
 
-## Cloud Backend Setup
-2. In **Authentication → Providers → Email**, enable Email/Password. For a hackathon demo, you may disable email confirmation so users can enter the app immediately.
-5. Never use or expose the `service_role` key in frontend code.
-6. Commit the updated files to GitHub. Vercel will redeploy automatically.
+Never put `OPENAI_API_KEY` in browser code.
+
+## 3. GitHub → Vercel
+Replace the files in your existing repository with this package, commit and push to the production branch (normally `main`). Vercel will automatically create a production deployment when the production branch is updated.
+
+## 4. Production test checklist
+- Create a new account and verify email.
+- Log in from a second browser/device.
+- Complete onboarding.
+- Change a profile value, refresh, and confirm it remains.
+- Log a workout/meal/water entry, refresh and verify persistence.
+- Use Forgot password and complete the reset flow.
+- Ask Ami a fitness question and confirm it responds.
+- Log out and confirm the app returns to login.
+- Open Supabase Database → Policies/Security Advisor and confirm RLS is enabled.
+
+## Important
+This is production-ready architecture, but legal/privacy text, branding ownership, monitoring, billing limits and final security review should be completed before a public commercial launch.
 
 
-## Updating the Live Website
-Edit files locally → save → commit/push to the connected GitHub repository → Vercel automatically creates a new deployment.
-
-If Chrome still shows the previous version, open the live URL and press **Ctrl + Shift + R** for a hard refresh.
-
-## Team
-**Developed by Mohammed Ismail Khan**  
-**Coordinator:** Rehan Khan  
-**Team:** Maqdoom • Zaid • Haniya • Khatija  
-**Team:** FluxCore / FitSync Hackathon Prototype
-
-## Vision
-> Instead of asking the user to adapt to a fitness plan, our vision is to make the fitness plan adapt to the user.
-
-FitSync is an initial prototype demonstrating the intended user experience. Future versions can connect the interface to richer fitness/nutrition datasets and an AI/ML personalization layer.
+## v8 upgrades
+- Light/Dark theme toggle remembered in the browser.
+- Ami is explicitly fitness-only at both client and server layers.
+- Branded Supabase signup email template and setup guide included in `SUPABASE-EMAIL-SETUP.md`.

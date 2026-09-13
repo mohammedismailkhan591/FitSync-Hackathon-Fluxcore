@@ -41,3 +41,36 @@
 .auth-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:-7px}.auth-hint{font-size:10px;color:#68747a}.legal-note{margin:18px 0 0;color:#667177;font-size:10px;line-height:1.6}.legal-note a{color:#a7c97f;text-decoration:none}.legal-note a:hover{text-decoration:underline}.reset-box{padding:32px;background:#101419;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}
 
 .legal-page{width:min(900px,calc(100% - 32px));margin:0 auto;padding:60px 0 100px}.legal-page h1{font-size:clamp(40px,7vw,72px);margin:18px 0}.legal-page p{max-width:760px;color:#b8c0c4;line-height:1.8}.legal-page .primary-btn{display:inline-block;margin-top:20px;text-decoration:none}
+
+/* FITSYNC THEME SYSTEM */
+html[data-theme="light"]{--bg:#f5f7f3;--panel:#ffffff;--panel2:#eef2ec;--line:#d9dfd7;--text:#172019;--muted:#667169;--accent:#5a9d12;--accent2:#78bd2c;--danger:#c94747;--shadow:0 18px 50px rgba(22,35,24,.10)}
+html[data-theme="light"] body{background:radial-gradient(circle at 80% 0%,#edf6e2 0,#f7f8f6 38%,#f2f5f1 100%);color:var(--text)}
+html[data-theme="light"] .sidebar{background:rgba(255,255,255,.92);border-color:var(--line)}
+html[data-theme="light"] .main{background:transparent}
+html[data-theme="light"] .auth-panel{background:#f7f9f6;border-color:var(--line)}
+html[data-theme="light"] .auth-visual{background:linear-gradient(135deg,rgba(90,157,18,.09),transparent 55%)}
+html[data-theme="light"] .auth-copy p{color:#566158}
+html[data-theme="light"] .auth-box,.html[data-theme="light"] .reset-box{background:#fff;border-color:var(--line)}
+html[data-theme="light"] input,html[data-theme="light"] select,html[data-theme="light"] textarea{background:#fff!important;color:var(--text)!important;border-color:var(--line)!important}
+html[data-theme="light"] .nav-item{color:#69736c}
+html[data-theme="light"] .nav-item.active{background:#edf6e4;color:#4d8b0d}
+html[data-theme="light"] .panel,html[data-theme="light"] .card,html[data-theme="light"] .metric-card,html[data-theme="light"] .nutrition-card,html[data-theme="light"] .recipe-card,html[data-theme="light"] .milestone-card{background:#fff;border-color:var(--line)}
+html[data-theme="light"] .journey-chart{background:linear-gradient(180deg,#fff,#f5f8f4)}
+html[data-theme="light"] .journey-chart:before{background:repeating-linear-gradient(to bottom,transparent 0,transparent 45px,rgba(30,45,32,.07) 46px)}
+html[data-theme="light"] .journey-insight{background:#f0f7e9;color:#34412f}
+html[data-theme="light"] .recipe-tags span,html[data-theme="light"] .budget-pills span{background:#f1f5ef;color:#50604f}
+html[data-theme="light"] .journey-tab{background:#fff;color:#68736b}
+html[data-theme="light"] .journey-tab.active{background:#edf6e4;color:#4d8b0d;border-color:#b8d69a}
+html[data-theme="light"] .ami-panel{background:#fff;border-color:var(--line);box-shadow:0 30px 90px rgba(20,35,24,.20)}
+html[data-theme="light"] .ami-safety{background:#f4f7f3;color:#657069;border-color:var(--line)}
+html[data-theme="light"] .ami-msg.bot{background:#f0f5ee;border-color:#d9e3d4;color:#34412f}
+html[data-theme="light"] .ami-quick button{background:#f6f8f5;color:#59645c;border-color:var(--line)}
+html[data-theme="light"] .ami-form{border-color:var(--line)}
+html[data-theme="light"] .ami-form input{background:#f7f9f6;color:var(--text);border-color:var(--line)}
+html[data-theme="light"] .cloud-status{background:#f6f8f5}
+html[data-theme="light"] .cloud-badge{background:#edf6e4}
+html[data-theme="light"] .topbar{background:rgba(247,249,246,.80)}
+.theme-toggle{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:999px;padding:7px 10px;font-size:10px;font-weight:900;transition:.2s}
+.theme-toggle:hover{border-color:var(--accent);transform:translateY(-1px)}
+.theme-toggle span:first-child{font-size:14px}
+@media(max-width:700px){.theme-toggle span:last-child{display:none}.theme-toggle{width:34px;height:34px;padding:0;justify-content:center}.top-actions{gap:6px}}

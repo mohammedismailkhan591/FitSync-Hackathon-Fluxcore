@@ -21,6 +21,32 @@ let workoutRpe = 5;
 let timerSeconds = 300;
 let timerInterval = null;
 
+
+/* THEME — Light / Dark / System */
+(function initTheme(){
+  const key='fitsync:theme';
+  const apply=(mode)=>{
+    const actual=mode==='system'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):mode;
+    document.documentElement.dataset.theme=actual;
+    const icon=$('#themeIcon'), label=$('#themeLabel'), btn=$('#themeToggle');
+    if(icon) icon.textContent=actual==='dark'?'☀':'☾';
+    if(label) label.textContent=actual==='dark'?'Light':'Dark';
+    if(btn) btn.setAttribute('aria-label',actual==='dark'?'Switch to light mode':'Switch to dark mode');
+  };
+  const saved=localStorage.getItem(key)||'dark';
+  apply(saved);
+  window.addEventListener('DOMContentLoaded',()=>{
+    apply(localStorage.getItem(key)||'dark');
+    $('#themeToggle')?.addEventListener('click',()=>{
+      const next=document.documentElement.dataset.theme==='dark'?'light':'dark';
+      localStorage.setItem(key,next); apply(next); toast(`${next==='dark'?'Dark':'Light'} mode enabled.`);
+    });
+  });
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{
+    if((localStorage.getItem(key)||'dark')==='system') apply('system');
+  });
+})();
+
 function clone(x){ return JSON.parse(JSON.stringify(x)); }
 function userKey(email){ return `fitsync:v${VERSION}:${String(email).trim().toLowerCase()}`; }
 const CLOUD_ENABLED = !!window.FitSyncCloud?.enabled;
@@ -328,8 +354,9 @@ const milestoneData=[
 function renderMilestones(){const el=$('#milestoneGrid');if(!el)return;el.innerHTML=milestoneData.map(([name,desc,icon,test])=>{const earned=!!test();return `<article class="milestone-card ${earned?'earned':''}"><span class="milestone-icon">${icon}</span><b>${name}</b><small>${desc}</small><span class="milestone-status">${earned?'✓ EARNED':'LOCKED'}</span></article>`}).join('')}
 
 /* AMI — fitness-only interactive assistant */
-const amiKeywords=['fitness','workout','exercise','gym','muscle','strength','cardio','running','walking','steps','protein','calorie','calories','diet','food','meal','recipe','water','hydration','sleep','recovery','weight','fat','goal','stretch','mobility','fitness','training','squat','pushup','push-up','yoga','stress','beginner','routine','nutrition'];
-function amiIsFitness(q){const l=q.toLowerCase();return amiKeywords.some(k=>l.includes(k));}
+const amiKeywords=['fitness','workout','exercise','gym','muscle','strength','cardio','running','walking','steps','protein','calorie','calories','diet','food','meal','recipe','water','hydration','sleep','recovery','weight','fat loss','goal','stretch','mobility','training','squat','pushup','push-up','yoga','stress','beginner','routine','nutrition','training plan','workout plan','bodybuilding','muscle gain','weight loss','meal plan'];
+const amiBlocked=['politics','president','prime minister','coding','programming','javascript','python','html','css','homework','assignment','math problem','exam','movie','song lyrics','gaming','game cheat','religion','stock market','crypto','legal advice','write an essay'];
+function amiIsFitness(q){const l=q.toLowerCase().trim();if(!l)return false;if(amiBlocked.some(k=>l.includes(k)))return false;return amiKeywords.some(k=>l.includes(k));}
 function amiReply(q){
  const l=q.toLowerCase(),p=state.profile||{};
  if(!amiIsFitness(q))return "I'm Ami, FitSync's fitness-only assistant. I can help with workouts, nutrition, recipes, recovery, sleep, hydration, goals and healthy habits. Ask me something fitness-related.";
