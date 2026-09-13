@@ -22,28 +22,25 @@ let timerSeconds = 300;
 let timerInterval = null;
 
 
-/* THEME — Light / Dark / System */
+/* THEME — Light / Dark only */
 (function initTheme(){
   const key='fitsync:theme';
   const apply=(mode)=>{
-    const actual=mode==='system'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):mode;
+    const actual=mode==='light'?'light':'dark';
     document.documentElement.dataset.theme=actual;
     const icon=$('#themeIcon'), label=$('#themeLabel'), btn=$('#themeToggle');
     if(icon) icon.textContent=actual==='dark'?'☀':'☾';
     if(label) label.textContent=actual==='dark'?'Light':'Dark';
     if(btn) btn.setAttribute('aria-label',actual==='dark'?'Switch to light mode':'Switch to dark mode');
   };
-  const saved=localStorage.getItem(key)||'dark';
+  const saved=localStorage.getItem(key)==='light'?'light':'dark';
   apply(saved);
   window.addEventListener('DOMContentLoaded',()=>{
-    apply(localStorage.getItem(key)||'dark');
+    apply(localStorage.getItem(key)==='light'?'light':'dark');
     $('#themeToggle')?.addEventListener('click',()=>{
       const next=document.documentElement.dataset.theme==='dark'?'light':'dark';
       localStorage.setItem(key,next); apply(next); toast(`${next==='dark'?'Dark':'Light'} mode enabled.`);
     });
-  });
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{
-    if((localStorage.getItem(key)||'dark')==='system') apply('system');
   });
 })();
 
@@ -201,7 +198,9 @@ function updateUI(){
   $('#progressStreak').textContent=`${state.streak} days`;$('#progressXP').textContent=state.xp;$('#consistency').textContent=`${state.consistency}%`;$('#workoutsCount').textContent=state.workouts;$('#streakBar').style.width=Math.min(100,state.streak*20)+'%';$('#xpBar').style.width=Math.min(100,state.xp%100)+'%';$('#consistencyBar').style.width=state.consistency+'%';$('#workoutBar').style.width=Math.min(100,state.workouts*20)+'%';
   $('#waterBadge')?.classList.toggle('unlocked',state.water>=targets().water);$('#workoutBadge')?.classList.toggle('unlocked',state.workouts>0);$('#streakBadge')?.classList.toggle('unlocked',state.streak>=3);
   $('#mealScore').textContent=`${state.meals} / 3`;$('#mealScoreBar').style.width=(state.meals/3*100)+'%';const rs=recoveryScore();$('#recoveryScore').textContent=rs===null?'—':rs;$('#recoveryMessage').textContent=rs===null?'Log sleep and stress to calculate your personal check-in.':rs>=80?'Good recovery zone. Keep your routine steady.':rs>=60?'Recovery is okay. Consider a lighter session if you feel tired.':'Recovery looks limited today. Prioritize rest and gentle movement.';$('#coachWater').textContent=`${state.water} / ${targets().water}`;$('#coachMeals').textContent=`${state.meals} / 3`;$('#coachSleep').textContent=state.sleep?`${state.sleep}h`:'Not logged';$('#coachGoal').textContent=state.profile.goal||'Not set';$('#coachEnergy').textContent=state.energy==='low'?'Low':state.energy==='high'?'High':'Good';
-  updateAdaptive();renderProfile();renderBars();
+  updateAdaptive();
+  updateTodayFocus();
+  renderProfile();renderBars();
   const mw=$('#momentumWorkout'),mr=$('#momentumRecovery'),mn=$('#momentumNutrition'),mt=$('#momentumText');
   if(mw)mw.textContent=state.workouts?'Session completed':'Ready to train';
   if(mr)mr.textContent=recoveryScore()===null?'Check-in needed':`${recoveryScore()}/100`;
@@ -209,6 +208,18 @@ function updateUI(){
   if(mt)mt.textContent=state.workouts===0?'Start one verified exercise session today.':state.sleep&&state.sleep<6?'Recovery is your next best move.':'Keep your next small action visible and easy.';
 }
 function updateAdaptive(){const msg={low:'Low energy: choose 8–10 minutes of mobility or an easy walk.',medium:'Good energy: your balanced session is ready.',high:'High energy: choose the strength plan plus a short cardio finisher.'}[state.energy];$('#adaptiveResult').textContent=msg;const action=state.meals<2?'Log your next meal.':state.water<targets().water?'Drink some water.':state.workouts===0?'Start your first workout.':'Keep your streak alive with one small action.';$('#heroText').textContent=action;$('#todayPlan').innerHTML=`<div class="plan-item"><b>🏋️ Workout</b><span>${workoutRecommendation()}</span></div><div class="plan-item"><b>🥗 Nutrition</b><span>${state.meals}/3 meals logged</span></div><div class="plan-item"><b>💧 Hydration</b><span>${state.water}/${targets().water} glasses</span></div><div class="plan-item"><b>😴 Recovery</b><span>${state.sleep?state.sleep+'h logged':'Check in today'}</span></div>`;}
+function updateTodayFocus(){
+  const title=$('#todayFocusTitle'),text=$('#todayFocusText'); if(!title||!text)return;
+  let t='Start with one practical win.',d='FitSync will choose your next best action from what you have actually logged.';
+  if(recoveryScore()!==null && recoveryScore()<60){t='Protect recovery today.';d='Your current recovery check-in is limited, so a lighter session or mobility is the better next step.'}
+  else if(state.workouts===0){t='Complete your first verified workout.';d='Your biggest opportunity today is creating a real workout data point so progress can start tracking.'}
+  else if(state.mealProtein<targets().protein){t='Close your protein gap.';d=`You have logged ${state.mealProtein}g protein; your planning target is ${targets().protein}g. Choose a protein-rich meal that fits your diet.`}
+  else if(state.water<targets().water){t='Bring hydration back on track.';d=`You have logged ${state.water} of ${targets().water} glasses. Add water gradually through the day.`}
+  else{t='Keep the next action easy to finish.';d='Your main targets are on track. Maintain consistency rather than adding unnecessary volume.'}
+  title.textContent=t;text.textContent=d;
+}
+$('#whyFocusBtn')?.addEventListener('click',()=>{const t=$('#todayFocusTitle')?.textContent||'today’s focus';toast(`Why: ${t} — based only on your logged FitSync data.`)});
+
 function workoutRecommendation(){if(state.energy==='low')return 'Mobility • 10 min';if(state.energy==='high')return 'Strength + finisher • 35 min';return state.profile.goal==='Improve endurance'?'Cardio intervals • 18 min':'Full Body Builder • 25 min';}
 $$('[data-energy]').forEach(b=>b.addEventListener('click',()=>{state.energy=b.dataset.energy;$$('[data-energy]').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');state.xp+=1;save();toast('Energy updated.');}));
 
@@ -277,13 +288,44 @@ const recipes=[
 ['Vegetable Dal Soup','Dinner','Vegan','25 min',280,17,'moong dal, carrot, spinach','Simmer dal and vegetables until soft; season lightly and serve.'],
 ['Oats Egg Pancake','Breakfast','Eggetarian','15 min',360,24,'oats, eggs, onion, tomato','Blend oats; mix with eggs and vegetables; cook like a savory pancake.']
 ].map((r,i)=>({id:`recipe-${i+1}`,name:r[0],meal:r[1],diet:r[2],time:r[3],cal:r[4],protein:r[5],keywords:r[6],steps:r[7].split('; ').map(x=>x.replace(/\.$/,'')),ingredients:r[6].split(', ').map(x=>x.charAt(0).toUpperCase()+x.slice(1))}));
-const foods=[['Paneer','265 kcal / 100g','Protein • Calcium'],['Chicken breast','165 kcal / 100g','High protein'],['Oats','150 kcal / 40g','Fiber'],['Peanut butter','190 kcal / 32g','Healthy fats'],['Rice','205 kcal / cooked cup','Carbohydrate'],['Banana','105 kcal / medium','Carbohydrate • Potassium'],['Eggs','72 kcal / egg','Protein'],['Lentils','230 kcal / cooked cup','Protein • Fiber'],['Soya chunks','Approx. 345 kcal / 100g dry','High protein'],['Chana','Approx. 364 kcal / 100g dry','Protein • Fiber'],['Sattu','Approx. 360 kcal / 100g','Protein • Fiber'],['Tofu','Approx. 145 kcal / 100g','Plant protein']];
+const foods=[
+ ['Spinach (raw)','2.9 g P • 3.6 g C • 23 kcal','₹5–8 / 100g','Leafy green'],
+ ['Rice (raw)','7.1 g P • 78 g C • 356 kcal','₹4–5 / 100g','White rice'],
+ ['Wheat / Atta (raw)','12 g P • 71 g C • 340 kcal','₹3–4 / 100g','Whole wheat'],
+ ['Oats (dry)','13 g P • 68 g C • 389 kcal','₹8–12 / 100g','Rolled oats'],
+ ['Moong dal (dry)','24 g P • 60 g C • 347 kcal','₹10–13 / 100g','Split green gram'],
+ ['Urad dal (dry)','24 g P • 59 g C • 347 kcal','₹11–14 / 100g','Split black gram'],
+ ['Masoor dal (dry)','25 g P • 63 g C • 352 kcal','₹8–11 / 100g','Red lentil'],
+ ['Toor dal (dry)','22 g P • 63 g C • 343 kcal','₹11–15 / 100g','Pigeon pea dal'],
+ ['Chana dal (dry)','22 g P • 60 g C • 360 kcal','₹8–12 / 100g','Bengal gram dal'],
+ ['Whole green moong (dry)','24 g P • 63 g C • 347 kcal','₹10–13 / 100g','UnsplIt green gram'],
+ ['Rajma (dry)','24 g P • 60 g C • 333 kcal','₹12–16 / 100g','Kidney beans'],
+ ['Chickpeas / Kabuli chana (dry)','19 g P • 61 g C • 364 kcal','₹10–14 / 100g','Chickpea'],
+ ['Roasted chana (dry)','20 g P • 58 g C • 370 kcal','₹8–12 / 100g','Roasted Bengal gram'],
+ ['Ragi (dry)','7.3 g P • 72 g C • 336 kcal','₹6–10 / 100g','Finger millet'],
+ ['Besan (dry)','22 g P • 58 g C • 387 kcal','₹9–12 / 100g','Gram flour'],
+ ['Soya chunks (dry)','52 g P • 33 g C • 345 kcal','₹12–18 / 100g','Textured soy protein'],
+ ['Soybean (dry)','36 g P • 30 g C • 446 kcal','₹10–15 / 100g','Whole soybean'],
+ ['Peanuts (dry)','26 g P • 16 g C • 567 kcal','₹6–10 / 100g','Groundnut'],
+ ['Peanut butter (regular)','25 g P • 20 g C • 590 kcal','₹15–25 / 100g','Roasted peanut butter'],
+ ['High-protein peanut butter','~30 g P • 15 g C • 600 kcal','₹20–35 / 100g','Brand dependent'],
+ ['Paneer','18 g P • 6 g C • 265 kcal','₹20–30 / 100g','Indian cottage cheese'],
+ ['Tofu','17 g P • 2 g C • 145 kcal','₹15–25 / 100g','Soybean curd'],
+ ['Milk (full cream)','3.2 g P • 4.8 g C • 60 kcal','₹5–8 / 100 ml','Cow’s milk'],
+ ['Curd / Dahi','3.5 g P • 4.7 g C • 60 kcal','₹5–8 / 100g','Plain curd'],
+ ['Greek yogurt (high-protein)','9–10 g P • 4 g C • 70 kcal','₹18–30 / 100g','Strained yogurt'],
+ ['Eggs','12.6 g P • 1.1 g C • 143 kcal','₹8–12 / 100g','Whole egg avg.'],
+ ['Almonds','21 g P • 22 g C • 579 kcal','₹25–40 / 100g','Dry fruits'],
+ ['Pumpkin seeds (raw)','30 g P • 11 g C • 559 kcal','₹20–35 / 100g','Seeds'],
+ ['Sunflower seeds (raw)','21 g P • 20 g C • 584 kcal','₹15–30 / 100g','Seeds'],
+ ['Sattu','20 g P • 58 g C • 360 kcal','₹8–12 / 100g','Roasted gram flour']
+];
 function recipeMatchesDiet(r){const d=(state.profile.diet||'No preference').toLowerCase();if(d.includes('vegan'))return r.diet==='Vegan';if(d.includes('vegetarian')&&!d.includes('non'))return r.diet==='Vegetarian'||r.diet==='Vegan';if(d.includes('eggetarian'))return ['Vegetarian','Vegan','Eggetarian'].includes(r.diet);return true;}
 function renderMeals(){const selected=state.profile.diet||'No preference';$('#mealGrid').innerHTML=meals.slice(0,3).map(m=>`<article class="meal-card"><span class="meal-icon">${m.id==='breakfast'?'🌅':m.id==='lunch'?'☀️':'🌙'}</span><div><small>${m.time}</small><h3>${m.name}</h3><p>${m.desc}</p><b>${m.cal} kcal • ${m.protein}g protein</b><div class="meal-actions"><button class="recipe-btn" data-recipe="${m.id}">Recipe</button><button data-eat="${m.id}">✓ Mark eaten</button></div></div></article>`).join('')+`<p class="muted diet-preference">Diet preference: <b>${selected}</b>. Open Recipe Explorer below for 40+ ideas.</p>`;$$('[data-eat]').forEach(b=>b.addEventListener('click',()=>{const m=meals.find(x=>x.id===b.dataset.eat);addMeal(m)}));$$('[data-recipe]').forEach(b=>b.addEventListener('click',()=>openRecipe(b.dataset.recipe)));}
 function openRecipe(id){const m=meals.find(x=>x.id===id)||recipes.find(x=>x.id===id);if(!m)return;$('#recipeContent').innerHTML=`<div class="recipe-content"><span class="eyebrow">${m.time||m.meal}</span><h2>${m.name}</h2><p class="recipe-meta">${m.cal} kcal • ${m.protein}g protein • ${m.tags||m.diet||'Fitness-friendly'}</p><h4>Ingredients</h4><ul>${m.ingredients.map(x=>`<li>${x}</li>`).join('')}</ul><h4>Preparation</h4><ol>${m.steps.map(x=>`<li>${x}</li>`).join('')}</ol><button class="primary-btn" id="recipeEatBtn">Mark this meal eaten ✓</button></div>`;$('#recipeModal').classList.remove('hidden');$('#recipeEatBtn').addEventListener('click',()=>{addMeal(m);closeRecipe()})}
 function recipeRank(r){let score=0;const goal=(state.profile.goal||'').toLowerCase();if(goal.includes('muscle')&&r.protein>=20)score+=5;if(goal.includes('strength')&&r.protein>=20)score+=4;if((state.profile.foodLikes||'').toLowerCase().split(',').some(x=>x.trim()&&r.keywords.includes(x.trim())))score+=2;if(recipeMatchesDiet(r))score+=4;if((state.mealProtein||0)<targets().protein)score+=r.protein/10;return score;}
 function renderRecipes(q='',category='All'){const query=q.trim().toLowerCase();const list=recipes.filter(r=>(category==='All'||r.meal===category)&&recipeMatchesDiet(r)).filter(r=>!query||`${r.name} ${r.diet} ${r.meal} ${r.keywords}`.toLowerCase().includes(query)).sort((a,b)=>recipeRank(b)-recipeRank(a));const visible=list.slice(0,48);$('#recipeCount').textContent=`${list.length} recipes`;$('#recipeGrid').innerHTML=visible.map(r=>`<article class="recipe-card"><div class="recipe-card-top"><span>${r.meal}</span><button class="favorite-recipe ${state.recipeFavorites?.includes(r.id)?'active':''}" data-fav="${r.id}" title="Save recipe">${state.recipeFavorites?.includes(r.id)?'♥':'♡'}</button></div><h3>${r.name}</h3><p>${r.diet} • ${r.time} • ${r.protein}g protein</p><div class="recipe-tags"><span>🔥 ${r.cal} kcal</span><span>💪 ${r.protein}g P</span></div><button class="outline-btn recipe-open" data-open-recipe="${r.id}">View recipe →</button></article>`).join('')||'<div class="recipe-empty"><b>No recipe found.</b><span>Try “paneer”, “oats”, “high protein”, “breakfast” or clear the filters.</span></div>';$$('[data-open-recipe]').forEach(b=>b.addEventListener('click',()=>openRecipe(b.dataset.openRecipe)));$$('[data-fav]').forEach(b=>b.addEventListener('click',()=>{const id=b.dataset.fav;state.recipeFavorites=state.recipeFavorites||[];state.recipeFavorites=state.recipeFavorites.includes(id)?state.recipeFavorites.filter(x=>x!==id):[...state.recipeFavorites,id];save();renderRecipes($('#recipeSearch').value,$('#recipeCategory').value);}));}
-$('#foodSearch').addEventListener('input',e=>renderFoods(e.target.value.toLowerCase()));function renderFoods(q=''){const matches=foods.filter(f=>f.join(' ').toLowerCase().includes(q));$('#foodGrid').innerHTML=matches.map(f=>`<div class="food-item"><div><b>${f[0]}</b><small>${f[1]} • ${f[2]}</small></div><span class="food-dot">●</span></div>`).join('')||'<p class="muted">No food found. Try another search.</p>'}
+$('#foodSearch').addEventListener('input',e=>renderFoods(e.target.value.toLowerCase()));function renderFoods(q=''){const matches=foods.filter(f=>f.join(' ').toLowerCase().includes(q));$('#foodGrid').innerHTML=matches.map(f=>{const parts=f[1].split(' • ');return `<article class="food-item"><div class="food-main"><b>${f[0]}</b><small>${f[3]}</small></div><div class="food-numbers"><span><b>${parts[0].replace(' g P','')}</b><small>Protein</small></span><span><b>${parts[1].replace(' g C','')}</b><small>Carbs</small></span><span><b>${parts[2].replace(' kcal','')}</b><small>kcal</small></span><span><b>${f[2]}</b><small>Approx.</small></span></div></article>`}).join('')||'<p class="muted">No food found. Try another search.</p>'}
 $('#recipeSearch').addEventListener('input',e=>renderRecipes(e.target.value,$('#recipeCategory').value));$('#recipeCategory').addEventListener('change',()=>renderRecipes($('#recipeSearch').value,$('#recipeCategory').value));$('#surpriseRecipeBtn').addEventListener('click',()=>{const list=recipes.filter(recipeMatchesDiet);const r=list[Math.floor(Math.random()*list.length)];openRecipe(r.id);toast(`Ami picked ${r.name}.`)});
 
 /* ROUTINE */
@@ -353,34 +395,61 @@ const milestoneData=[
 ];
 function renderMilestones(){const el=$('#milestoneGrid');if(!el)return;el.innerHTML=milestoneData.map(([name,desc,icon,test])=>{const earned=!!test();return `<article class="milestone-card ${earned?'earned':''}"><span class="milestone-icon">${icon}</span><b>${name}</b><small>${desc}</small><span class="milestone-status">${earned?'✓ EARNED':'LOCKED'}</span></article>`}).join('')}
 
-/* AMI — fitness-only interactive assistant */
-const amiKeywords=['fitness','workout','exercise','gym','muscle','strength','cardio','running','walking','steps','protein','calorie','calories','diet','food','meal','recipe','water','hydration','sleep','recovery','weight','fat loss','goal','stretch','mobility','training','squat','pushup','push-up','yoga','stress','beginner','routine','nutrition','training plan','workout plan','bodybuilding','muscle gain','weight loss','meal plan'];
+/* AMI — personalized fitness coach with short-term conversation memory */
 const amiBlocked=['politics','president','prime minister','coding','programming','javascript','python','html','css','homework','assignment','math problem','exam','movie','song lyrics','gaming','game cheat','religion','stock market','crypto','legal advice','write an essay'];
-function amiIsFitness(q){const l=q.toLowerCase().trim();if(!l)return false;if(amiBlocked.some(k=>l.includes(k)))return false;return amiKeywords.some(k=>l.includes(k));}
+const amiFitnessHints=['fitness','workout','exercise','gym','muscle','strength','cardio','running','walking','steps','protein','calorie','calories','diet','food','meal','recipe','water','hydration','sleep','recovery','weight','fat loss','goal','stretch','mobility','training','squat','pushup','push-up','yoga','stress','beginner','routine','nutrition','training plan','workout plan','bodybuilding','muscle gain','weight loss','meal plan','healthy','sore','rest day','progress','form','reps','sets','minutes','equipment','today','tomorrow','schedule','tired','energy'];
+let amiConversation=[];
+function amiIsFitness(q){
+  const l=q.toLowerCase().trim();
+  if(!l)return false;
+  if(amiBlocked.some(k=>l.includes(k)))return false;
+  // Do not require an obvious keyword on the client: questions like
+  // "I only have 20 minutes and no equipment" are still valid fitness questions.
+  return true;
+}
+function amiFallbackIsFitness(q){return amiFitnessHints.some(k=>q.toLowerCase().includes(k));}
 function amiReply(q){
  const l=q.toLowerCase(),p=state.profile||{};
- if(!amiIsFitness(q))return "I'm Ami, FitSync's fitness-only assistant. I can help with workouts, nutrition, recipes, recovery, sleep, hydration, goals and healthy habits. Ask me something fitness-related.";
- if(l.includes('today')&&l.includes('workout'))return `Based on your profile, I'd start with ${workoutRecommendation().toLowerCase()}. Your current energy is ${state.energy==='low'?'low':'good/high'}, so keep the session practical and stop if you feel pain or unusual symptoms.`;
- if(l.includes('budget')||l.includes('cheap')||l.includes('afford'))return 'For budget-friendly protein, try dal, chana, soya chunks, eggs (if you eat them), peanuts and sattu. Pair simple staples like rice/roti with a protein source and vegetables. Open Diet & Recipes for recipe ideas and substitutions.';
- if(l.includes('protein'))return `Your current planning target is ${targets().protein} g/day. Spread protein across meals using foods you enjoy; your logged protein so far today is ${state.mealProtein} g.`;
- if(l.includes('sleep'))return 'Aim for a consistent sleep schedule and protect your wind-down time. For most adults, 7+ hours is a useful general target; FitSync also uses your sleep check-in to adjust recovery messaging.';
- if(l.includes('water')||l.includes('hydration'))return `Your current planning target is about ${targets().water} L/day. Sip across the day and increase attention to hydration with heat and exercise. You have logged ${state.water} glasses.`;
- if(l.includes('recipe')||l.includes('eat')||l.includes('food'))return 'Tell me the food you have — for example “rice and dal” — and I can suggest a simple fitness-friendly meal idea. You can also search the Diet Encyclopedia for recipes.';
- if(l.includes('weight')||l.includes('fat'))return `Your profile goal is ${p.goal||'not set'}. Focus on sustainable habits: regular movement, appropriate food portions, protein-rich meals, sleep and consistency rather than rapid changes.`;
- if(l.includes('beginner'))return 'Start with 2–3 manageable sessions per week, learn technique, and progress gradually. FitSync has Full Body Builder and Rescue Workout options for different time constraints.';
- if(l.includes('stress')||l.includes('recovery'))return 'Recovery matters. Use the Recovery page to log sleep and stress, then choose lighter movement or mobility when your recovery is limited.';
- return 'Good fitness question. I can help you choose a workout, plan a meal, improve recovery, set habits or understand your FitSync targets. What would you like to work on?';
+ if(!amiFallbackIsFitness(q))return "I'm Ami, FitSync's fitness coach. I can help with workouts, nutrition, recipes, recovery, sleep, hydration, goals and healthy habits. Ask me a fitness-related question.";
+ if(l.includes('today')&&l.includes('workout'))return `Based on your profile, I'd start with ${workoutRecommendation().toLowerCase()}. Your current energy is ${state.energy==='low'?'low':state.energy==='high'?'high':'moderate'}, so keep the session practical and stop if you feel pain or unusual symptoms.`;
+ if(l.includes('budget')||l.includes('cheap')||l.includes('afford'))return 'For budget-friendly protein, try dal, chana, soya chunks, eggs (if you eat them), peanuts and sattu. Pair staples such as rice or roti with a protein source and vegetables.';
+ if(l.includes('protein'))return `Your current planning target is ${targets().protein} g/day. You have logged ${state.mealProtein} g today. Spread protein across meals rather than trying to get it all at once.`;
+ if(l.includes('sleep'))return `Your sleep check-in is ${state.sleep?state.sleep+' hours':'not logged yet'}. Aim for a consistent schedule and protect your wind-down time. If recovery is poor, FitSync should favor an easier session rather than forcing intensity.`;
+ if(l.includes('water')||l.includes('hydration'))return `Your current planning target is about ${targets().water} L/day. You have logged ${state.water} glasses. Sip through the day and pay extra attention to hydration during heat and exercise.`;
+ if(l.includes('recipe')||l.includes('eat')||l.includes('food'))return `Tell me what food you have — for example, “I have rice, dal and eggs” — and I can suggest a simple meal idea. Your current diet preference is ${p.diet||'not set'}.`;
+ if(l.includes('weight')||l.includes('fat'))return `Your profile goal is ${p.goal||'not set'}. Focus on sustainable habits, appropriate portions, protein-rich meals, movement, sleep and consistency rather than rapid changes.`;
+ if(l.includes('beginner'))return 'Start with 2–3 manageable sessions per week, learn technique, and progress gradually. You can use the practical workout flow in FitSync to log each completed exercise.';
+ if(l.includes('stress')||l.includes('recovery')||l.includes('tired'))return 'Recovery matters. Log your sleep, stress and energy in FitSync. When recovery is limited, choose lighter movement or mobility instead of trying to compensate with a harder session.';
+ return 'Tell me your goal, available time and equipment, and I can turn that into a practical workout or nutrition plan.';
 }
-function amiAdd(text,who='bot'){const box=$('#amiMessages');if(!box)return;const d=document.createElement('div');d.className=`ami-msg ${who}`;d.textContent=text;box.appendChild(d);box.scrollTop=box.scrollHeight;}
-function openAmi(){const panel=$('#amiPanel');panel.classList.remove('hidden');if(!$('#amiMessages').children.length)amiAdd(`Hi ${firstName()}! I'm Ami ✦. I only answer fitness-related questions. Ask me about your workout, food, sleep, recovery or goals.`)}
-$('#amiLauncher').addEventListener('click',openAmi);$('#amiClose').addEventListener('click',()=>$('#amiPanel').classList.add('hidden'));$$('[data-ami]').forEach(b=>b.addEventListener('click',()=>{openAmi();const q=b.dataset.ami;amiAdd(q,'user');askAmi(q)}));
+function amiAdd(text,who='bot'){
+ const box=$('#amiMessages');if(!box)return;
+ const d=document.createElement('div');d.className=`ami-msg ${who}`;d.textContent=text;box.appendChild(d);box.scrollTop=box.scrollHeight;
+ if(text&&['user','bot'].includes(who)){amiConversation.push({role:who==='user'?'user':'assistant',content:String(text)});amiConversation=amiConversation.slice(-12);}
+}
+function openAmi(){const panel=$('#amiPanel');panel.classList.remove('hidden');if(!$('#amiMessages').children.length)amiAdd(`Hi ${firstName()}! I'm Ami ✦. I know your FitSync profile and can use your current workout, nutrition and recovery data to give more personalized advice. What are you working on today?`)}
+$('#amiLauncher').addEventListener('click',openAmi);
+$('#amiClose').addEventListener('click',()=>$('#amiPanel').classList.add('hidden'));
+$$('[data-ami]').forEach(b=>b.addEventListener('click',()=>{openAmi();const q=b.dataset.ami;amiAdd(q,'user');askAmi(q)}));
+function amiContext(){
+ const p=state.profile||{};
+ return {
+  profile:{name:firstName(),age:p.age,gender:p.gender,height:p.height,weight:p.weight,targetWeight:p.targetWeight,bodyType:p.bodyType,goal:p.goal,experience:p.experience,diet:p.diet,activity:p.activity,fitnessRating:p.fitnessRating,workoutDays:p.workoutDays,minutes:p.minutes,workoutTime:p.workoutTime,equipment:p.equipment,foodLikes:p.foodLikes,mealsPerDay:p.mealsPerDay,motivation:p.motivation,athlete:p.athlete},
+  targets:targets(),
+  today:{water:state.water,meals:state.meals,steps:state.steps,sleep:state.sleep,stress:state.stress,energy:state.energy,workouts:state.workouts,mealCalories:state.mealCalories,mealProtein:state.mealProtein,consistency:state.consistency,activeDays:state.activeDays?.length||0,lastWorkout:state.lastWorkout||null},
+  journey:(state.journey||[]).slice(-14),
+  history:amiConversation.slice(-11,-1)
+ };
+}
 async function askAmi(q){
-  if(!amiIsFitness(q)){amiAdd(amiReply(q));return;}
-  if(window.FitSyncAI?.enabled){
-    const typing=document.createElement('div');typing.className='ami-msg bot ami-typing';typing.textContent='Ami is thinking…';$('#amiMessages').appendChild(typing);
-    try{const r=await window.FitSyncAI.ask(q,{profile:{goal:state.profile.goal,experience:state.profile.experience,diet:state.profile.diet,activity:state.profile.activity,fitnessRating:state.profile.fitnessRating,workoutDays:state.profile.workoutDays,minutes:state.profile.minutes,equipment:state.profile.equipment,foodLikes:state.profile.foodLikes},targets:targets(),today:{water:state.water,meals:state.meals,steps:state.steps,sleep:state.sleep,stress:state.stress,energy:state.energy,workouts:state.workouts}});typing.remove();amiAdd(r);return;}catch(err){typing.remove();console.warn('AI coach unavailable',err);}
-  }
-  setTimeout(()=>amiAdd(amiReply(q)),180);
+ const typing=document.createElement('div');typing.className='ami-msg bot ami-typing';typing.textContent='Ami is thinking…';$('#amiMessages').appendChild(typing);
+ if(window.FitSyncAI?.enabled){
+  try{
+   const r=await window.FitSyncAI.ask(q,amiContext());
+   typing.remove();amiAdd(r);return;
+  }catch(err){typing.remove();console.warn('AI coach unavailable',err);}
+ }
+ setTimeout(()=>amiAdd(amiReply(q)),180);
 }
 $('#amiForm').addEventListener('submit',e=>{e.preventDefault();const input=$('#amiInput'),q=input.value.trim();if(!q)return;amiAdd(q,'user');input.value='';askAmi(q)});
 

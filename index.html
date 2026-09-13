@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>FitSync v7 — Your AI Fitness Companion</title>
+  <title>FitSync v9 — Your AI Fitness Companion</title>
   <meta name="description" content="FitSync is a personalized fitness platform for adaptive workouts, nutrition, recovery and progress tracking.">
   <meta name="theme-color" content="#07090b">
   <meta name="robots" content="index,follow">
@@ -96,7 +96,7 @@
       <header class="topbar">
         <button id="menuBtn" class="menu-btn" aria-label="Open menu">☰</button>
         <div><p class="top-kicker">FITSYNC / <span id="pageLabel">OVERVIEW</span></p><h2 id="greeting">Good morning.</h2></div>
-        <div class="top-actions"><span id="cloudStatus" class="cloud-status">LOCAL DEMO</span><div class="xp-pill">⚡ <b id="xpValue">0</b> XP</div><button id="themeToggle" class="theme-toggle" type="button" aria-label="Switch theme" title="Switch theme"><span id="themeIcon">☾</span><span id="themeLabel">Dark</span></button><button class="avatar" id="avatar" aria-label="Profile">U</button></div>
+        <div class="top-actions"><span id="cloudStatus" class="cloud-status">LOCAL DEMO</span><div class="xp-pill">⚡ <b id="xpValue">0</b> XP</div><button id="themeToggle" class="theme-toggle" type="button" aria-label="Switch theme" title="Toggle light / dark"><span id="themeIcon">☾</span><span id="themeLabel">Dark</span></button><button class="avatar" id="avatar" aria-label="Profile">U</button></div>
       </header>
 
       <!-- OVERVIEW -->
@@ -127,6 +127,11 @@
           <div class="panel"><div class="panel-head"><div><span class="eyebrow">ADAPTIVE ENGINE</span><h3>How are you feeling today?</h3></div></div><p class="muted">Your energy changes the suggested session.</p><div class="energy-options"><button data-energy="low">😴<span>Low</span></button><button data-energy="medium" class="selected">🙂<span>Good</span></button><button data-energy="high">🔥<span>High</span></button></div><div id="adaptiveResult" class="adaptive-result">Recommended: 25-minute full-body session.</div></div>
           <div class="panel"><div class="panel-head"><div><span class="eyebrow">TODAY'S PLAN</span><h3 id="planHeadline">Your plan is ready.</h3></div></div><div class="plan-list" id="todayPlan"></div></div>
         </div>
+
+        <div class="smart-focus panel">
+          <div class="smart-focus-copy"><span class="eyebrow">TODAY'S FOCUS</span><h3 id="todayFocusTitle">Start with one practical win.</h3><p id="todayFocusText">FitSync will choose your next best action from what you have actually logged.</p></div>
+          <div class="focus-actions"><button class="outline-btn" data-page-jump="workouts">🏋️ Start workout</button><button class="outline-btn" data-page-jump="diet">🍛 Log a meal</button><button class="outline-btn" data-page-jump="recovery">😴 Check recovery</button><button class="ghost-btn" id="whyFocusBtn">Why this focus?</button></div>
+        </div>
       </section>
 
       <!-- WORKOUTS -->
@@ -143,7 +148,7 @@
         <div class="diet-top"><div class="diet-score"><span class="eyebrow">MEAL PROGRESS</span><strong id="mealScore">0 / 3</strong><div class="score-bar"><i id="mealScoreBar"></i></div><p id="dietTip">Log a meal after you actually eat it.</p></div><div class="macro-note"><b>Why macros matter</b><span>Calories = energy • Protein = repair • Fats = essential functions • Fiber = digestion • Water = hydration</span></div></div>
         <div class="budget-diet panel"><div class="budget-copy"><span class="eyebrow">BUDGET-FRIENDLY FUEL</span><h3>Healthy food should not have to be expensive.</h3><p>FitSync highlights practical Indian staples such as dal, rice, chana, soya, eggs, peanuts and sattu, with recipe substitutions so users can choose options that fit their budget.</p><div class="budget-pills"><span>₹ Budget aware</span><span>🥗 Everyday foods</span><span>🍳 Protein options</span><span>♻️ Flexible swaps</span></div></div><img src="diet-guide.jpg" alt="Indian food nutrition guide with protein, carbs, calories and approximate prices"></div>
         <div class="meal-grid" id="mealGrid"></div>
-        <div class="panel"><div class="panel-head"><div><span class="eyebrow">DIET ENCYCLOPEDIA</span><h3>Search foods & understand the basics.</h3></div><input id="foodSearch" class="search-input" placeholder="Search paneer, oats, rice…"></div><div class="food-grid" id="foodGrid"></div></div><div class="panel recipe-explorer"><div class="panel-head recipe-explorer-head"><div><span class="eyebrow">RECIPE EXPLORER</span><h3>Find a meal you actually want to eat.</h3><p class="muted">Search 40+ practical Indian recipes by ingredient, meal type or goal. FitSync ranks options using your profile.</p></div><button id="surpriseRecipeBtn" class="primary-btn">✨ Surprise me</button></div><div class="recipe-toolbar"><input id="recipeSearch" class="search-input recipe-search" placeholder="Search recipes: paneer, oats, high protein…"><select id="recipeCategory" class="search-input recipe-category"><option>All</option><option>Breakfast</option><option>Lunch</option><option>Snack</option><option>Dinner</option></select><span id="recipeCount" class="recipe-count">0 recipes</span></div><div class="recipe-grid" id="recipeGrid"></div></div>
+        <div class="panel food-guide-panel"><div class="panel-head"><div><span class="eyebrow">30 INDIAN FOOD REFERENCE</span><h3>Protein, carbs, calories & approximate price.</h3><p class="muted">Values are approximate per 100 g unless the food is listed as a cooked/serving value. Prices are indicative and vary by brand, city and season.</p></div><input id="foodSearch" class="search-input" placeholder="Search paneer, oats, rice…"></div><div class="food-grid" id="foodGrid"></div></div><div class="panel recipe-explorer"><div class="panel-head recipe-explorer-head"><div><span class="eyebrow">RECIPE EXPLORER</span><h3>Find a meal you actually want to eat.</h3><p class="muted">Search 40+ practical Indian recipes by ingredient, meal type or goal. FitSync ranks options using your profile.</p></div><button id="surpriseRecipeBtn" class="primary-btn">✨ Surprise me</button></div><div class="recipe-toolbar"><input id="recipeSearch" class="search-input recipe-search" placeholder="Search recipes: paneer, oats, high protein…"><select id="recipeCategory" class="search-input recipe-category"><option>All</option><option>Breakfast</option><option>Lunch</option><option>Snack</option><option>Dinner</option></select><span id="recipeCount" class="recipe-count">0 recipes</span></div><div class="recipe-grid" id="recipeGrid"></div></div>
         <div class="panel nutrition-learn"><span class="eyebrow">NUTRITION 101</span><h3>How FitSync estimates your targets</h3><div class="learn-grid"><div><b>Calories</b><p>Estimated from your profile, activity and goal. A target is a planning estimate, not a diagnosis.</p></div><div><b>Protein</b><p>Higher-protein goals support muscle repair; FitSync uses a simple weight-based planning range.</p></div><div><b>Healthy fats</b><p>Fats are energy-dense and important for normal body functions, so the plan keeps them in balance.</p></div><div><b>Fiber & water</b><p>Fiber supports digestion; hydration needs vary with body size, climate and activity.</p></div></div></div>
       </section>
 

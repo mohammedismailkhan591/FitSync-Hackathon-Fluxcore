@@ -1,4 +1,4 @@
-# FitSync v7 — Production-ready deployment package
+# FitSync v9 — Production-ready deployment package
 
 FitSync is a personalized fitness web app with adaptive workouts, nutrition/recipe discovery, recovery tracking, progress, and an authenticated AI coach named Ami.
 
@@ -47,7 +47,20 @@ Replace the files in your existing repository with this package, commit and push
 This is production-ready architecture, but legal/privacy text, branding ownership, monitoring, billing limits and final security review should be completed before a public commercial launch.
 
 
-## v8 upgrades
-- Light/Dark theme toggle remembered in the browser.
+## v9 upgrades
+- Light/Dark theme toggle remembered in the browser; the separate System mode has been removed.
 - Ami is explicitly fitness-only at both client and server layers.
 - Branded Supabase signup email template and setup guide included in `SUPABASE-EMAIL-SETUP.md`.
+- Added a 30-item Indian food nutrition reference with protein, carbs, calories and indicative price data.
+- Added Today's Focus dashboard logic and removed the System theme option.
+
+## Ami intelligence upgrade (v9)
+Ami now uses a server-side Vercel function at `api/ami.js` and the OpenAI Responses API. The browser sends the signed-in user's fitness context, recent journey data and short-term chat history; the server validates the Supabase session before calling OpenAI. No OpenAI secret is stored in browser code.
+
+Set these Vercel environment variables:
+- `OPENAI_API_KEY` — required, server-side only.
+- `OPENAI_MODEL` — optional; defaults to `gpt-5.6-luna`.
+- `SUPABASE_URL` — your Supabase project URL.
+- `SUPABASE_PUBLISHABLE_KEY` — your Supabase publishable/anon key.
+
+Ami can now personalize answers using the user's goal, experience, diet, activity, available equipment, workout time, current energy/recovery, logged nutrition/hydration/sleep, workout history and recent progress. It also remembers the recent conversation during the current session so follow-up questions can refer to earlier messages.
